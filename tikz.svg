@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="148mm"
+   height="105mm"
+   viewBox="0 0 148 105"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="tikz.svg">
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="1.9457221"
+     inkscape:cx="335.74806"
+     inkscape:cy="116.26003"
+     inkscape:document-units="mm"
+     inkscape:current-layer="g4511"
+     showgrid="true"
+     inkscape:window-width="1280"
+     inkscape:window-height="711"
+     inkscape:window-x="0"
+     inkscape:window-y="27"
+     inkscape:window-maximized="0"
+     units="mm">
+    <inkscape:grid
+       type="xygrid"
+       id="grid4510" />
+  </sodipodi:namedview>
+  <defs
+     id="defs4" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     id="layer1"
+     inkscape:groupmode="layer"
+     inkscape:label="Layer 1"
+     transform="translate(0,-191.99994)" />
+  <g
+     id="g4511"
+     inkscape:groupmode="layer"
+     inkscape:label="Hello Planet Layer"
+     transform="translate(0,-191.99994)">
+    <rect
+       style="fill:#a0a0a0;fill-opacity:1;stroke:#00b8b7;stroke-width:0.26458335;stroke-opacity:1"
+       id="rect4512"
+       width="115.8875"
+       height="52.211117"
+       x="2.6458335"
+       y="212.33327"
+       ry="2.8033551e-06" />
+    <text
+       xml:space="preserve"
+       style="font-size:3.9511113px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Serif;-inkscape-font-specification:Serif"
+       x="5.542479"
+       y="220.26411"
+       id="text4503"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4525"
+         x="5.542479"
+         y="220.26411">A la izquierda, arriba</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.08000024px;line-height:125%;font-family:Sans;-inkscape-font-specification:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;writing-mode:lr;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="61.124699"
+       y="233.74001"
+       id="text4507"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan2998">Centrado Sans , mas grande</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.9511113px;line-height:125%;font-family:Serif;-inkscape-font-specification:Serif;text-align:center;letter-spacing:0px;word-spacing:0px;writing-mode:lr;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="60.8871"
+       y="244.38828"
+       id="text4511"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4513"
+         x="60.8871"
+         y="244.38828"
+         style="-inkscape-font-specification:Serif;font-family:Serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;font-size:3.9511113px;text-anchor:middle;text-align:center;writing-mode:lr;line-height:125%">Centrado serif</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.9511113px;line-height:125%;font-family:Serif;-inkscape-font-specification:Serif;text-align:end;letter-spacing:0px;word-spacing:0px;writing-mode:lr;text-anchor:end;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="116.04219"
+       y="260.86472"
+       id="text4515"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4527"
+         x="116.04219"
+         y="260.86472">A la derecha, abajo</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.26458335px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 34.395835,286.4166 73.377781,273.01105"
+       id="path4511"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.26458335px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 140.22917,281.12494 127,254.6666 l 0,-23.8125 18.52084,0"
+       id="path4512"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.26458335px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 42.333335,204.39577 13.229167,-7.9375 31.750001,0 0,13.22917 -34.395834,0 z"
+       id="path4521"
+       inkscape:connector-curvature="0" />
+    <circle
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.26458335;stroke-opacity:1"
+       id="path4522"
+       cx="128.32292"
+       cy="205.71869"
+       r="6.6145835"
+       d="m 134.93751,205.71869 c 0,3.65313 -2.96145,6.61458 -6.61459,6.61458 -3.65313,0 -6.61458,-2.96145 -6.61458,-6.61458 0,-3.65313 2.96145,-6.61458 6.61458,-6.61458 3.65314,0 6.61459,2.96145 6.61459,6.61458 z" />
+    <ellipse
+       style="fill:none;stroke:#000000;stroke-width:0.26458335;stroke-opacity:1"
+       id="path4523"
+       cx="13.229167"
+       cy="273.18744"
+       rx="5.291667"
+       ry="2.6458335"
+       d="m 18.520834,273.18744 c 0,1.46125 -2.36916,2.64583 -5.291667,2.64583 -2.922507,0 -5.291667,-1.18458 -5.291667,-2.64583 0,-1.46125 2.36916,-2.64583 5.291667,-2.64583 2.922507,0 5.291667,1.18458 5.291667,2.64583 z"
+       sodipodi:cx="13.229167"
+       sodipodi:cy="273.18744"
+       sodipodi:rx="5.291667"
+       sodipodi:ry="2.6458335"
+       transform="matrix(1.2517354,0,0,1.4486497,-1.2270598,-121.33254)" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 325,352.04724 25,-15 0,-30 c -33.54707,3.29362 -28.81753,24.35853 -25,45 z"
+       id="path2998"
+       inkscape:connector-curvature="0"
+       transform="matrix(0.28222224,0,0,0.28222224,0,191.99994)"
+       sodipodi:nodetypes="cccc" />
+  </g>
+</svg>
