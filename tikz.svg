@@ -23,9 +23,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.26466351"
+     inkscape:zoom="0.49385555"
      inkscape:cx="262.5"
-     inkscape:cy="-629.4391"
+     inkscape:cy="533.37558"
      inkscape:document-units="mm"
      inkscape:current-layer="g4511"
      showgrid="true"
@@ -93,16 +93,21 @@
          id="tspan2998">Centrado Sans , mas grande</tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.9511113px;line-height:125%;font-family:Serif;-inkscape-font-specification:Serif;text-align:center;letter-spacing:0px;word-spacing:0px;writing-mode:lr;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       style="font-size:3.95111132px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Serif;-inkscape-font-specification:Serif"
        x="60.8871"
        y="244.38828"
        id="text4511"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
-         id="tspan4513"
          x="60.8871"
          y="244.38828"
-         style="-inkscape-font-specification:Serif;font-family:Serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;font-size:3.9511113px;text-anchor:middle;text-align:center;writing-mode:lr;line-height:125%">Centrado serif</tspan></text>
+         style="font-size:3.95111132px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Serif;-inkscape-font-specification:Serif"
+         id="tspan3000">Centrado serif</tspan><tspan
+         sodipodi:role="line"
+         x="60.8871"
+         y="249.32716"
+         style="font-size:3.95111132px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Serif;-inkscape-font-specification:Serif"
+         id="tspan3004">con dos lineas</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.9511113px;line-height:125%;font-family:Serif;-inkscape-font-specification:Serif;text-align:end;letter-spacing:0px;word-spacing:0px;writing-mode:lr;text-anchor:end;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
@@ -116,7 +121,7 @@
          y="260.86472">A la derecha, abajo</tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:0.26458335px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 34.395835,286.4166 73.377781,273.01105"
+       d="M 92.604099,208.61536 131.58605,195.20981"
        id="path4511"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cc" />
@@ -157,7 +162,7 @@
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="ccccc" />
     <ellipse
-       style="fill:none;stroke:#000000;stroke-width:0.26458335;stroke-opacity:1"
+       style="fill:#1da1a1;stroke:#cc0000;stroke-width:0.26458334999999999;stroke-opacity:1;fill-opacity:1"
        id="path4523-0"
        cx="13.229167"
        cy="273.18744"
@@ -169,5 +174,11 @@
        sodipodi:rx="5.291667"
        sodipodi:ry="2.6458335"
        transform="matrix(2.5034708,1.8776031,-1.4486497,1.4486497,482.32142,-135.95507)" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.28222224px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 40,270 0,8 q 8,8 16,0 l 0,-8 z"
+       id="path2999-7"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="ccccc" />
   </g>
 </svg>

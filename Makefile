@@ -1,7 +1,7 @@
 all:	tikz.pdf
 
 tikz.pdf:	tikz.tex
-	pdflatex -interaction=nonstopmode tikz
+	pdflatex -interaction=nonstopmode tikz > /dev/null
 
 tikz.tex:	svg2tikz.py tikz.svg
 	python svg2tikz.py -s -o tikz.tex tikz.svg

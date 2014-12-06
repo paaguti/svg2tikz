@@ -128,9 +128,13 @@ class TiKZMaker(object):
         y=float(m.group(3))
         return self.pt2str(x,y),m.group(6),x,y
 
-    pathRe = re.compile(r"(([cClLmM] )?(-?\d+(\.\d+)?),(-?\d+(\.\d+)?))(\s+(\S.*))?")
+    pathRe = re.compile(r"(([cCqQlLmM] )?(-?\d+(\.\d+)?),(-?\d+(\.\d+)?))(\s+(\S.*))?")
 
     def path_chop(self,d,first,incremental):
+        def path_controls(inc,p1,p2,p3):
+            print (".. controls %s%s and %s%s .. %s%s" % (inc,p1,inc,p2,inc,p3),file=self._output)
+            
+        print (" -->> %s" % d,file=sys.stderr)
         # print (d,file=sys.stderr)
         if d == 'z':
             print ("-- cycle",file=self._output)
@@ -139,16 +143,20 @@ class TiKZMaker(object):
         # print (m,file=sys.stderr)
         # print (m.groups(),file=sys.stderr)
         spec = m.group(2)
-        x = float(m.group(3))
-        y = float(m.group(5))
-        pt = self.pt2str(x,y)
+        x1 = float(m.group(3))
+        y1 = float(m.group(5))
+        pt = self.pt2str(x1,y1)
         
         if spec is not None:
             incremental = spec[0] != spec[0].upper()
         inc = "++" if incremental else ""
             
         rest = m.group(8)
-        if spec == "C " or spec == "c ":
+        print (" --]]>> [%s|%s]" % (spec,rest),file=sys.stderr)
+
+        spec = spec[0] if spec is not None else None
+
+        if spec in ["c", "C"]:
             pt2,rest,x2,y2 = self.dimChop(rest)
             pt3,rest,x3,y3 = self.dimChop(rest)
             #
@@ -159,13 +167,33 @@ class TiKZMaker(object):
             # .. controls ++(4.2mm,4.2mm) and ++(-4.2mm,-4.2mm) .. ++(16.8mm,0.0mm)
             if incremental:
                 pt2 = self.pt2str(x2-x3,y2-y3)
-            print ("** Warning: check controls",file=sys.stderr)
-            print ("%%%% Warning: check controls",file=self._output)
-            print (".. controls %s%s and %s%s .. %s%s" % (inc,pt,inc,pt2,inc,pt3),file=self._output)
-        elif spec == "M " or spec == "m ":
+            else:
+                print ("** Warning: check controls",file=sys.stderr)
+                print ("%%%% Warning: check controls",file=self._output)
+            path_controls (inc,pt,pt2,pt3)
+        elif spec in ["Q","q"]:
+            print (">> Decoding quadratic Bezier curve",file=sys.stderr)
+            pt2,rest,x2,y2 = self.dimChop(rest)
+            if spec == "Q":
+                print ("%% Warning: ignoring (abs) Quadratic Bezier",file=sys.stderr)
+                print ("%% This should be a quadratic Bezier with control point at %s" % pt,file=self._output)
+                print (" -- %s" % (pt2),file=self._output)
+            else:
+                #
+                # See http://www.latex-community.org/forum/viewtopic.php?t=4424&f=45
+                # And above
+                #
+                # Q3 = P2
+                # Q2 = (2*P1+P2)/3 [ -P2 ^above^]
+                # Q1 = 
+                pt3 = pt2
+                pt2 = self.pt2str(2.0*(x1-x2)/3.0,2.0*(y1-y2)/3)
+                pt1 = self.pt2str(2.0*x1/3.0,      2.0*y1/3)
+                path_controls(inc,pt1,pt2,pt3)
+        elif spec in [ "M","m"]:
             if first is False: print(";",file=self._output)
             print("\\draw %s%s" % (inc,pt),file=self._output)
-        elif spec == "L " or spec == "l " or spec is None:
+        elif spec in ["L","l"] or spec is None:
             print ("-- %s%s" % (inc,pt),file=self._output)
         return rest,False,incremental
     
