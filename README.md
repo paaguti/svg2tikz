@@ -21,9 +21,8 @@ included into LaTEX documents (using the \input{} command)
 
 TODO:
 *  Bezier:
-  * check conversion of cubic Bezier control points (2nd control point is buggy)
-  * implement conversion of quadratic Bezier specs ('Q' and 'q' specs in SVG)
-  
+  * check Bezier control points (2nd control point in Cubic curves)
+
 Dependencies:
 *  Python 2.7
 * LXML to parse the SVG files
