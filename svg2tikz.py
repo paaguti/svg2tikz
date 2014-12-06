@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """ A program to generate TiKZ code from simple SVGs 
-(c) 2014 by Pedro A. Aranda Gutierrez; paaguti@hotmail.com
 """
+# (c) 2014 by Pedro A. Aranda Gutierrez; paaguti@hotmail.com
+
 from __future__ import print_function
 from lxml import etree
 import sys
@@ -16,7 +17,7 @@ class TiKZMaker(object):
     align     = re.compile(r"text-align:([^;]+);")
     ffamily   = re.compile(r"font-family:([^;]+);")
     fsize     = re.compile(r"font-size:(\d+(\.\d+)?)px;")
-    translate = re.compile(r"translate\((-?\d+(\.\d+)?),(-?\d+(\.\d+)?)\)")
+    translate = re.compile(r"translate\((-?\d+(\.\d+)?([eE]-?\d+)?),(-?\d+(\.\d+)?([eE]-?\d+)?)\)")
     stroke    = re.compile(r"stroke:#(none|[0-9a-f]{6});")
     fill      = re.compile(r"fill:#(none|[0-9a-f]{6});")
 
@@ -26,11 +27,15 @@ class TiKZMaker(object):
         self._standalone = standalone
         self._debug      = debug
         
-    def pt2str(self,x,y,sep=','):
-        return "(%.1f%s%s%.1f%s)" % (x,self._unit,sep,y,self._unit)
+    def str2u(self,s):
+        f = float(s) if not isinstance(s,float) else s
+        return "%.1f%s" % (f,self._unit)
 
     def u2str(self,x):
-        return "(%.1f%s)" % (x,self._unit)
+        return "(%s)" % self.str2u(x)
+
+    def pt2str(self,x,y,sep=','):
+        return "(%s%s%s)" % (self.str2u(x),sep,self.str2u(y))
     
     def addNS(self,tag,defNS="{http://www.w3.org/2000/svg}"):
         return defNS+tag
@@ -157,7 +162,7 @@ class TiKZMaker(object):
         except:
             al = "center"
         if al != "center":
-            print ("""** Warning: ignored string alignment to the %s""" % al,file=sys.stderr)
+            print ("** Warning: ignored string alignment to the %s" % al,file=sys.stderr)
             print ("%%%% This element will be anyhow centered!",file=self._output)
         return "align=%s" % al
 
@@ -210,6 +215,41 @@ class TiKZMaker(object):
         print ("\\node [%s] at %s { %s };" % (",".join(styles),self.pt2str(x,y),txt),
                file=self._output)
 
+    transformRe = re.compile(r"(translate|rotate|matrix)\([^)]+\)")
+    
+    def transform2scope(self,elem):
+        try:
+            transform = elem.attrib['transform']
+            if self._debug: print (transform,file=sys.stderr)
+            m = TiKZMaker.transformRe.match(transform)
+            if self._debug: print (m.groups(),file=sys.stderr)
+            nums = [ n for n,_ in TiKZMaker.floatRe.findall(transform) ]
+            if self._debug: print (nums,file=sys.stderr)
+            xform = []
+
+            if m.group(1) == "translate":
+                xform.append("shift={(%s,%s)}" % (self.str2u(nums[0]),self.str2u(nums[1])))
+            elif m.group(1) == "rotate":
+                xform.append("rotate=%s" % nums[0])
+            elif m.group(1) == "matrix":
+                xform.append("cm={%s,%s,%s,%s,(%s,%s)}" % (nums[0],nums[1],nums[2],nums[3],
+                                                           self.str2u(nums[4]),self.str2u(nums[5])))
+            if len(xform) > 0:
+                print ("\\begin{scope}[%s]" % ",".join(xform),file=self._output)
+                return True
+            return False
+        except:
+            return False
+
+    def getTransform(self,elem):
+        try:
+            xform=elem.attrib["transform"]
+            print ("transform = \"%s\"" % xform,file=sys.stderr)
+            return ""
+        except: pass# KeyError:
+        return None
+
+            
     def process_g(self,elem):
         if len([c for c in elem]) == 0: return
         xlate = {
@@ -220,31 +260,22 @@ class TiKZMaker(object):
             'ellipse': lambda e: self.process_ellipse(e),
             'path':    lambda e: self.process_path(e)
         }
+
         # print ("process_g(%s)" % elem.tag,file=sys.stderr)
         # print (" %d children" % len([c for c in elem]))
-        transform = None
-        dx = 0.0
-        dy = 0.0
-        try:
-            transform = elem.attrib["transform"]
-            sdx,_,sdy,_ = TiKZMaker.translate.findall(transform)[0]
-            dx = float(sdx)
-            dy = float(sdy)
-            transform = "shift={%s}" % self.pt2str(x,y)
-        except:
-            transform = None
-        if transform is not None:
-            print ("\\begin{scope}[%s]" % transform,file=self._output)
         for child in elem:
             for x in xlate:
                 if self.addNS(x) == child.tag:
+                    transform = self.getTransform(child)
+                    if transform is not None:
+                        print ("\\begin{scope}[%s]" % transform,file=self._output)
                     xlate[x](child)
-        if transform is not None:
-            print ("\\end{scope}",file=self._output)
+                    if transform is not None:
+                        print ("\\end{scope}",file=self._output)
 
     def mkTikz(self,svg):
         if self._standalone:
-            print ("""\\documentclass{standalone}
+            print ("""\\documentclass{standalone}[tikz,border=1mm]
 \\usepackage{tikz}
 \\usetikzlibrary{shapes}
 \\makeatletter
@@ -254,7 +285,14 @@ class TiKZMaker(object):
         print ("\\begin{scope}[yscale=-1]",file=self._output)
         for elem in svg.getroot():
             if elem.tag == self.addNS('g'):
-                self.process_g(elem)
+                if len([c for c in elem]) > 0:
+                    transform=self.getTransform(elem)
+                    if transform is not None: 
+                        print ("\\begin{scope}[%s]" % transform,file=self._output)
+                    self.process_g(elem)
+                    if transform is not None: 
+                        print ("\\end{scope}",file=self._output)
+                    
         print ("\\end{scope}",file=self._output)
         print ("\\end{tikzpicture}",file=self._output)
         if self._standalone:
@@ -263,7 +301,7 @@ class TiKZMaker(object):
 def main():
     import optparse
     parser = optparse.OptionParser(description=__doc__,
-                                   usage="%prog [flags] file...}")
+                                   usage="%prog [flags] file...")
     parser.add_option("-d","--debug",      dest="debug",      
                       action = "store_true", default=False, 
                       help="Enable debugging messages")
@@ -277,7 +315,9 @@ def main():
     options, remainder = parser.parse_args()
     processor = TiKZMaker(sys.stdout if options.output is None else open(options.output,"w"),
                           options.standalone)
-    processor.mkTikz(etree.parse(remainder[0]))
-    
+    try:
+        processor.mkTikz(etree.parse(remainder[0]))
+    except IndexError:
+        parser.print_help()
 if __name__ == "__main__":
    main()

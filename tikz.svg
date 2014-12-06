@@ -23,7 +23,7 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.9457221"
+     inkscape:zoom="2.7516666"
      inkscape:cx="335.74806"
      inkscape:cy="116.26003"
      inkscape:document-units="mm"
@@ -152,10 +152,10 @@
        transform="matrix(1.2517354,0,0,1.4486497,-1.2270598,-121.33254)" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 325,352.04724 25,-15 0,-30 c -33.54707,3.29362 -28.81753,24.35853 -25,45 z"
-       id="path2998"
+       d="m 315,337.04724 0,-30 c 14.99999,14.99999 44.99999,-15.00001 60,0 l 0,30 z"
+       id="path2999"
        inkscape:connector-curvature="0"
        transform="matrix(0.28222224,0,0,0.28222224,0,191.99994)"
-       sodipodi:nodetypes="cccc" />
+       sodipodi:nodetypes="ccccc" />
   </g>
 </svg>
