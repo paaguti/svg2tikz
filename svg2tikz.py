@@ -17,7 +17,7 @@ class TiKZMaker(object):
     align     = re.compile(r"text-align:([^;]+);")
     ffamily   = re.compile(r"font-family:([^;]+);")
     fsize     = re.compile(r"font-size:(\d+(\.\d+)?)px;")
-    translate = re.compile(r"translate\((-?\d+(\.\d+)?([eE]-?\d+)?),(-?\d+(\.\d+)?([eE]-?\d+)?)\)")
+    # translate = re.compile(r"translate\((-?\d+(\.\d+)?([eE]-?\d+)?),(-?\d+(\.\d+)?([eE]-?\d+)?)\)")
     stroke    = re.compile(r"stroke:#(none|[0-9a-f]{6});")
     fill      = re.compile(r"fill:#(none|[0-9a-f]{6});")
 
@@ -59,7 +59,7 @@ class TiKZMaker(object):
         return r,g,b
 
     def style2colour(self,style):
-        print ("style2colour(%s)" % style,file=sys.stderr)
+        if self._debug: print ("style2colour(%s)" % style,file=sys.stderr)
         result = []
         m = TiKZMaker.stroke.findall(style)
         # print ("m = %s" % m,file=sys.stderr)
@@ -121,7 +121,7 @@ class TiKZMaker(object):
     def path_chop(self,d,first,incremental):
         # print (d,file=sys.stderr)
         if d == 'z':
-            print ("-- cycle;",file=self._output)
+            print ("-- cycle",file=self._output)
             return None, False, False            
         m = TiKZMaker.pathRe.match(d)
         # print (m,file=sys.stderr)
@@ -139,6 +139,8 @@ class TiKZMaker(object):
         if spec == "C " or spec == "c ":
             pt2,rest = self.dimChop(rest)
             pt3,rest = self.dimChop(rest)
+            print ("** Warning: check controls",file=sys.stderr)
+            print ("%%%% Warning: check controls",file=self._output)
             print (".. controls %s%s and %s%s .. %s%s" % (inc,pt,inc,pt2,inc,pt3),file=self._output)
         elif spec == "M " or spec == "m ":
             if first is False: print(";",file=self._output)
@@ -215,16 +217,24 @@ class TiKZMaker(object):
         print ("\\node [%s] at %s { %s };" % (",".join(styles),self.pt2str(x,y),txt),
                file=self._output)
 
-    transformRe = re.compile(r"(translate|rotate|matrix)\([^)]+\)")
-    
+    transformRe = re.compile(r"(translate|rotate|matrix)\(([^)]+)\)")
+    floatRe     = re.compile(r"(-?\d+(\.\d+([eE]-?\d+)?)?)")
+
     def transform2scope(self,elem):
+        # print ("transform2scope(%s)" % elem.attrib,file=sys.stderr)
         try:
             transform = elem.attrib['transform']
-            if self._debug: print (transform,file=sys.stderr)
+            if self._debug: 
+                print (transform,file=sys.stderr)
             m = TiKZMaker.transformRe.match(transform)
-            if self._debug: print (m.groups(),file=sys.stderr)
-            nums = [ n for n,_ in TiKZMaker.floatRe.findall(transform) ]
-            if self._debug: print (nums,file=sys.stderr)
+            if self._debug: 
+                print (m.groups(),file=sys.stderr)
+            getFloats = TiKZMaker.floatRe.findall(m.group(2)) 
+            if self._debug:
+                print (getFloats,file=sys.stderr)
+            nums = [ n for n,d,e in getFloats ]
+            if self._debug: 
+                print (nums,file=sys.stderr)
             xform = []
 
             if m.group(1) == "translate":
@@ -240,14 +250,6 @@ class TiKZMaker(object):
             return False
         except:
             return False
-
-    def getTransform(self,elem):
-        try:
-            xform=elem.attrib["transform"]
-            print ("transform = \"%s\"" % xform,file=sys.stderr)
-            return ""
-        except: pass# KeyError:
-        return None
 
             
     def process_g(self,elem):
@@ -266,35 +268,29 @@ class TiKZMaker(object):
         for child in elem:
             for x in xlate:
                 if self.addNS(x) == child.tag:
-                    transform = self.getTransform(child)
-                    if transform is not None:
-                        print ("\\begin{scope}[%s]" % transform,file=self._output)
+                    transform = self.transform2scope(child)
                     xlate[x](child)
-                    if transform is not None:
-                        print ("\\end{scope}",file=self._output)
+                    if transform: print ("\\end{scope}",file=self._output)
 
     def mkTikz(self,svg):
         if self._standalone:
-            print ("""\\documentclass{standalone}[tikz,border=1mm]
+            print ("""\\documentclass[tikz,border=1mm]{standalone}
 \\usepackage{tikz}
 \\usetikzlibrary{shapes}
 \\makeatletter
 \\begin{document}""",file=self._output)
 
-        print ("\\begin{tikzpicture}",file=self._output)
-        print ("\\begin{scope}[yscale=-1]",file=self._output)
+        print ("""\\begin{tikzpicture}
+\\begin{scope}[yscale=-1]""",file=self._output)
         for elem in svg.getroot():
             if elem.tag == self.addNS('g'):
                 if len([c for c in elem]) > 0:
-                    transform=self.getTransform(elem)
-                    if transform is not None: 
-                        print ("\\begin{scope}[%s]" % transform,file=self._output)
+                    transform=self.transform2scope(elem)
                     self.process_g(elem)
-                    if transform is not None: 
-                        print ("\\end{scope}",file=self._output)
+                    if transform: print ("\\end{scope}",file=self._output)
                     
-        print ("\\end{scope}",file=self._output)
-        print ("\\end{tikzpicture}",file=self._output)
+        print ("""\\end{scope}
+\\end{tikzpicture}""",file=self._output)
         if self._standalone:
             print ("\\end{document}",file=self._output)
 
@@ -314,7 +310,8 @@ def main():
     
     options, remainder = parser.parse_args()
     processor = TiKZMaker(sys.stdout if options.output is None else open(options.output,"w"),
-                          options.standalone)
+                          standalone=options.standalone, 
+                          debug=options.debug)
     try:
         processor.mkTikz(etree.parse(remainder[0]))
     except IndexError:
