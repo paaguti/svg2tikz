@@ -42,6 +42,16 @@ class TiKZMaker(object):
     def addNS(self,tag,defNS="{http://www.w3.org/2000/svg}"):
         return defNS+tag
 
+    namedTagRe = re.compile(r"\{[^}]+\}(.*)")
+
+    def delNS(self,tag):
+        # if self._debug:
+        #     print ("Full tag : '%s'" % tag,file=sys.stderr)
+        m = TiKZMaker.namedTagRe.match(tag)
+        # if self._debug:
+        #     print (m.groups(),file=sys.stderr)
+        return m.group(1)
+
     def get_loc(self,elem):
         # print (elem.tag,elem.attrib)
         x = float(elem.attrib['x'])
@@ -116,7 +126,7 @@ class TiKZMaker(object):
         m=TiKZMaker.dimRe.match(s)
         x=float(m.group(1))
         y=float(m.group(3))
-        return self.pt2str(x,y),m.group(6)
+        return self.pt2str(x,y),m.group(6),x,y
 
     pathRe = re.compile(r"(([cClLmM] )?(-?\d+(\.\d+)?),(-?\d+(\.\d+)?))(\s+(\S.*))?")
 
@@ -139,8 +149,16 @@ class TiKZMaker(object):
             
         rest = m.group(8)
         if spec == "C " or spec == "c ":
-            pt2,rest = self.dimChop(rest)
-            pt3,rest = self.dimChop(rest)
+            pt2,rest,x2,y2 = self.dimChop(rest)
+            pt3,rest,x3,y3 = self.dimChop(rest)
+            #
+            # Quick hack
+            #
+            # %.. controls ++(4.2mm,4.2mm) and ++(12.6mm,-4.2mm) .. ++(16.9mm,0.0mm)
+            # Correct
+            # .. controls ++(4.2mm,4.2mm) and ++(-4.2mm,-4.2mm) .. ++(16.8mm,0.0mm)
+            if incremental:
+                pt2 = self.pt2str(x2-x3,y2-y3)
             print ("** Warning: check controls",file=sys.stderr)
             print ("%%%% Warning: check controls",file=self._output)
             print (".. controls %s%s and %s%s .. %s%s" % (inc,pt,inc,pt2,inc,pt3),file=self._output)
@@ -200,24 +218,29 @@ class TiKZMaker(object):
             print ("** Font %s %.1f => %s" % (fn,size,result),file=sys.stderr)
         return "font=%s" % "".join(result) if len(result) != 0 else None
 
-    def process_text(self,elem):
-        x,y   = self.get_loc(elem)
-        txt   = elem.text
-        style = elem.attrib['style']
-        if txt is None:
-            tspan = elem.find(self.addNS('tspan'))
-            if tspan is not None:  # Take everything from the <tspan>
-                txt = tspan.text
-                try:
-                    x,y = self.get_loc(tspan)
-                except: pass
-                if 'style' in tspan.attrib:
-                    style=tspan.attrib['style']            
+    def process_tspan(self,elem,x,y,style):
+        txt = elem.text
+        try:
+            x,y = self.get_loc(elem)
+        except: pass
+        try:
+            style=elem.attrib['style']            
+        except: pass
         styles = [self.get_align(style)]
         f = self.get_font(style)
         if f is not None: styles.append(f)
         print ("\\node [%s] at %s { %s };" % (",".join(styles),self.pt2str(x,y),txt),
                file=self._output)
+        
+    def process_text(self,elem):
+        x,y   = self.get_loc(elem)
+        txt   = elem.text
+        style = elem.attrib['style']
+        if txt is None:
+            for tspan in elem.findall(self.addNS('tspan')):
+                self.process_tspan(tspan,x,y,style)
+        else:
+            self.process_tspan(elem,x,y,style)
 
     transformRe = re.compile(r"(translate|rotate|matrix)\(([^)]+)\)")
     floatRe     = re.compile(r"(-?\d+(\.\d+([eE]-?\d+)?)?)")
@@ -269,12 +292,13 @@ class TiKZMaker(object):
         # print (" %d children" % len([c for c in elem]))
         for child in elem:
             for x in xlate:
-                if self.addNS(x) == child.tag:
+                if self.delNS(child.tag) == x:
                     transform = self.transform2scope(child)
                     xlate[x](child)
                     if transform: print ("\\end{scope}",file=self._output)
 
     def mkTikz(self,svg):
+        units = self._unit
         if self._standalone:
             print ("""\\documentclass[tikz,border=1mm]{standalone}
 \\usepackage{tikz}
@@ -284,17 +308,25 @@ class TiKZMaker(object):
 
         print ("""\\begin{tikzpicture}
 \\begin{scope}[yscale=-1]""",file=self._output)
+        if self._debug:
+            print (svg.getroot().attrib,file=sys.stderr)
         for elem in svg.getroot():
-            if elem.tag == self.addNS('g'):
+            if self.delNS(elem.tag) == 'g':
                 if len([c for c in elem]) > 0:
                     transform=self.transform2scope(elem)
                     self.process_g(elem)
                     if transform: print ("\\end{scope}",file=self._output)
-                    
+            elif self.delNS(elem.tag) == "namedview":
+                try:
+                    self._unit = elem.attrib["units"]
+                except: 
+                    self._unit = units
+
         print ("""\\end{scope}
 \\end{tikzpicture}""",file=self._output)
         if self._standalone:
             print ("\\end{document}",file=self._output)
+        self._unit = units
 
 def main():
     import optparse
