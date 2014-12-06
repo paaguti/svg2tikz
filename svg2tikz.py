@@ -134,7 +134,7 @@ class TiKZMaker(object):
         def path_controls(inc,p1,p2,p3):
             print (".. controls %s%s and %s%s .. %s%s" % (inc,p1,inc,p2,inc,p3),file=self._output)
             
-        print (" -->> %s" % d,file=sys.stderr)
+        # print (" -->> %s" % d,file=sys.stderr)
         # print (d,file=sys.stderr)
         if d == 'z':
             print ("-- cycle",file=self._output)
@@ -152,7 +152,7 @@ class TiKZMaker(object):
         inc = "++" if incremental else ""
             
         rest = m.group(8)
-        print (" --]]>> [%s|%s]" % (spec,rest),file=sys.stderr)
+        # print (" --]]>> [%s|%s]" % (spec,rest),file=sys.stderr)
 
         spec = spec[0] if spec is not None else None
 
