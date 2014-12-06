@@ -2,6 +2,8 @@
 """ A program to generate TiKZ code from simple SVGs 
 """
 # (c) 2014 by Pedro A. Aranda Gutierrez; paaguti@hotmail.com
+# released under LGPL 3.0
+# see LICENSE
 
 from __future__ import print_function
 from lxml import etree
