@@ -99,7 +99,10 @@ class TiKZMaker(object):
     def process_rect(self,elem):
         x,y   = self.get_loc(elem)
         w,h   = self.get_dim(elem)
-        style = self.style2colour(elem.attrib['style'])
+        try:
+            style = self.style2colour(elem.attrib['style'])
+        except:
+            style = ""
         print ("\\draw %s %s rectangle %s ;" % (style,self.pt2str(x,y),self.pt2str(w+x,h+y)),
                file=self._output)
 
@@ -107,8 +110,11 @@ class TiKZMaker(object):
         x    = float(elem.attrib['cx'])
         y    = float(elem.attrib['cy'])
         r    = float(elem.attrib['r'])
-        style = elem.attrib['style']
-        print ("\\draw %s circle %s ;" % (self.pt2str(x,y),self.u2str(r)),
+        try:
+            style = self.style2colour(elem.attrib['style'])
+        except:
+            style = ""
+        print ("\\draw %s %s circle %s ;" % (style,self.pt2str(x,y),self.u2str(r)),
                file=self._output)
 
     def process_ellipse(self,elem):
@@ -116,8 +122,12 @@ class TiKZMaker(object):
         y    = float(elem.attrib['cy'])
         rx   = float(elem.attrib['rx'])
         ry   = float(elem.attrib['ry'])
-        style = elem.attrib['style']
-        print ("\\draw %s ellipse %s ;" % (self.pt2str(x,y),self.pt2str(rx,ry,' and ')),
+        # style = elem.attrib['style']
+        try:
+            style = self.style2colour(elem.attrib['style'])
+        except:
+            style = ""
+        print ("\\draw %s %s ellipse %s ;" % (style,self.pt2str(x,y),self.pt2str(rx,ry,' and ')),
                file=self._output)
 
     dimRe  = re.compile(r"(-?\d+(\.\d+)?),(-?\d+(\.\d+)?)(\s+(\S.*))?")
@@ -133,7 +143,8 @@ class TiKZMaker(object):
     def path_chop(self,d,first,incremental):
         def path_controls(inc,p1,p2,p3):
             print (".. controls %s%s and %s%s .. %s%s" % (inc,p1,inc,p2,inc,p3),file=self._output)
-            
+        
+
         # print (" -->> %s" % d,file=sys.stderr)
         # print (d,file=sys.stderr)
         if d == 'z':
@@ -199,7 +210,7 @@ class TiKZMaker(object):
     
     def process_path(self,elem):
         d = elem.attrib['d']
-        f = True
+        f = True 
         i = False
         while d is not None and len(d) > 0:
             d,f,i = self.path_chop(d,f,i)
