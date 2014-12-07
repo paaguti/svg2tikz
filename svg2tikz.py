@@ -9,6 +9,7 @@ from __future__ import print_function
 from lxml import etree
 import sys
 import re
+import codecs
 
 class TiKZMaker(object):
     _output     = None
@@ -330,11 +331,15 @@ class TiKZMaker(object):
         # print ("process_g(%s)" % elem.tag,file=sys.stderr)
         # print (" %d children" % len([c for c in elem]))
         for child in elem:
+            tag = self.delNS(child.tag)
             for x in xlate:
-                if self.delNS(child.tag) == x:
+                if tag == x:
                     transform = self.transform2scope(child)
                     xlate[x](child)
                     if transform: print ("\\end{scope}",file=self._output)
+                    break
+            else:
+                print ("WARNING: <%s ../> not processed" % tag,file=sys.stderr)
 
     def mkTikz(self,svg):
         units = self._unit
@@ -382,7 +387,7 @@ def main():
                       help="Make a standalone LaTEX file")
     
     options, remainder = parser.parse_args()
-    processor = TiKZMaker(sys.stdout if options.output is None else open(options.output,"w"),
+    processor = TiKZMaker(sys.stdout if options.output is None else codecs.open(options.output,"w","utf-8"),
                           standalone=options.standalone, 
                           debug=options.debug)
     try:
