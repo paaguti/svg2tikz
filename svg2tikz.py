@@ -286,11 +286,10 @@ class TiKZMaker(object):
     floatRe     = re.compile(r"(-?\d+(\.\d+([eE]-?\d+)?)?)")
 
     def transform2scope(self,elem):
-        # print ("transform2scope(%s)" % elem.attrib,file=sys.stderr)
         try:
             transform = elem.attrib['transform']
             if self._debug: 
-                print (transform,file=sys.stderr)
+                print ("transform2scope(%s)" % transform,file=sys.stderr)
             m = TiKZMaker.transformRe.match(transform)
             if self._debug: 
                 print (m.groups(),file=sys.stderr)
@@ -298,15 +297,19 @@ class TiKZMaker(object):
             if self._debug:
                 print (getFloats,file=sys.stderr)
             nums = [ n for n,d,e in getFloats ]
-            if self._debug: 
-                print (nums,file=sys.stderr)
+            operation = m.group(1)
+            if self._debug:
+                print (operation,nums,file=sys.stderr)
             xform = []
 
-            if m.group(1) == "translate":
+            if operation == "translate":
                 xform.append("shift={(%s,%s)}" % (self.str2u(nums[0]),self.str2u(nums[1])))
-            elif m.group(1) == "rotate":
-                xform.append("rotate=%s" % nums[0])
-            elif m.group(1) == "matrix":
+            elif operation == "rotate":
+                if len(nums) == 1:
+                    xform.append("rotate=%s" % nums[0])
+                else:
+                    xform.append("rotate around={%s:(%s,%s)}" % (nums[0],self.str2u(nums[1]),self.str2u(nums[2])))
+            elif operation == "matrix":
                 xform.append("cm={%s,%s,%s,%s,(%s,%s)}" % (nums[0],nums[1],nums[2],nums[3],
                                                            self.str2u(nums[4]),self.str2u(nums[5])))
             if len(xform) > 0:
@@ -379,6 +382,9 @@ def main():
     parser.add_option("-d","--debug",      dest="debug",      
                       action = "store_true", default=False, 
                       help="Enable debugging messages")
+    parser.add_option("-a","--auto",      dest="auto",      
+                      action = "store_true", default=False, 
+                      help="Create output name from source")
     parser.add_option("-o","--output",     dest="output",
                       default=None,  
                       help="Write to file(default is stdout)")
@@ -387,6 +393,10 @@ def main():
                       help="Make a standalone LaTEX file")
     
     options, remainder = parser.parse_args()
+    if options.auto:
+        options.output = remainder[0].replace(".svg",".tex")
+        print (" %s --> %s " % (remainder[0],options.output),file=sys.stderr)
+
     processor = TiKZMaker(sys.stdout if options.output is None else codecs.open(options.output,"w","utf-8"),
                           standalone=options.standalone, 
                           debug=options.debug)
