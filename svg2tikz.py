@@ -20,9 +20,8 @@ class TiKZMaker(object):
     align     = re.compile(r"text-align:([^;]+);")
     ffamily   = re.compile(r"font-family:([^;]+);")
     fsize     = re.compile(r"font-size:(\d+(\.\d+)?)px;")
-    # translate = re.compile(r"translate\((-?\d+(\.\d+)?([eE]-?\d+)?),(-?\d+(\.\d+)?([eE]-?\d+)?)\)")
-    stroke    = re.compile(r"stroke:#(none|[0-9a-f]{6});")
-    fill      = re.compile(r"fill:#(none|[0-9a-f]{6});")
+    stroke    = re.compile(r"stroke:(none|#[0-9a-f]{6});")
+    fill      = re.compile(r"fill:(none|#[0-9a-f]{6});")
 
     def __init__(self, output=sys.stdout, standalone = False,debug=False,unit="mm"):
         self._output     = output
@@ -66,31 +65,52 @@ class TiKZMaker(object):
         return w,h
 
     def hex2rgb(self,colour):
-        r = int("0x"+colour[0:2],0)
-        g = int("0x"+colour[2:4],0)
-        b = int("0x"+colour[4:],0)
+        if self._debug: print ('hex2rgb(%s)' % colour,file=sys.stderr)
+        r = int("0x"+colour[1:3],0)
+        g = int("0x"+colour[3:5],0)
+        b = int("0x"+colour[5:],0)
         return r,g,b
+
+    def hex2colour(self,colour):
+        if self._debug:
+            print ("hex2colour(%s) = " % colour,end="",file=sys.stderr)
+        result = None
+        d = {'none'   : 'none', 
+             '#000000' : 'black',
+             '#ff0000' : 'red',
+             '#00ff00' : 'green',
+             '#0000ff' : 'blue',
+             '#ffff00' : 'yellow',
+             '#ffffff' : 'white' } 
+        try :
+            result = d[colour]
+        except: pass
+        if self._debug:
+            print (result,file=sys.stderr)
+        return result
 
     def style2colour(self,style):
         if self._debug: print ("style2colour(%s)" % style,file=sys.stderr)
         result = []
         m = TiKZMaker.stroke.findall(style)
-        # print ("m = %s" % m,file=sys.stderr)
         try:
             colour=m[0]
-            if colour == "none":
-                result.append("draw=none")
+            if self._debug: print ("stroke = %s" % colour,file=sys.stderr)
+            hc = self.hex2colour(colour)
+            if hc is not None:
+                if hc != 'black': result.append("draw=%s" % hc)
             else:
                 print ("\\definecolor{dc}{RGB}{%d,%d,%d}" % self.hex2rgb(colour),file=self._output)
                 result.append("draw=dc")
         except: pass
         m = TiKZMaker.fill.findall(style)
+        if self._debug: print ("fill = %s" % m,file=sys.stderr)
         try:
             colour=m[0]
-            if colour == "none":
-                result.append("fill=none")
+            hc = self.hex2colour(colour)
+            if hc is not None:
+                result.append("fill=%s" % hc)
             else:
-                # print ("m = %s" % colour,file=sys.stderr)
                 print ("\\definecolor{fc}{RGB}{%d,%d,%d}" % self.hex2rgb(colour),file=self._output)
                 result.append("fill=fc")
         except: pass
@@ -141,7 +161,7 @@ class TiKZMaker(object):
 
     pathRe = re.compile(r"(([cCqQlLmM] )?(-?\d+(\.\d+)?),(-?\d+(\.\d+)?))(\s+(\S.*))?")
 
-    def path_chop(self,d,first,incremental):
+    def path_chop(self,d,first,incremental,style):
         def path_controls(inc,p1,p2,p3):
             print (".. controls %s%s and %s%s .. %s%s" % (inc,p1,inc,p2,inc,p3),file=self._output)
         
@@ -150,7 +170,7 @@ class TiKZMaker(object):
         # print (d,file=sys.stderr)
         if d == 'z':
             print ("-- cycle",file=self._output)
-            return None, False, False            
+            return None, False, False,style            
         m = TiKZMaker.pathRe.match(d)
         # print (m,file=sys.stderr)
         # print (m.groups(),file=sys.stderr)
@@ -168,7 +188,12 @@ class TiKZMaker(object):
 
         spec = spec[0] if spec is not None else None
 
-        if spec in ["c", "C"]:
+        if spec in [ "M","m"]:
+            if first is False: print(";",file=self._output)
+            print("\\draw %s %s%s" % (style,inc,pt),file=self._output)
+        elif spec in ["L","l"] or spec is None:
+            print ("-- %s%s" % (inc,pt),file=self._output)
+        elif spec in ["c", "C"]:
             pt2,rest,x2,y2 = self.dimChop(rest)
             pt3,rest,x3,y3 = self.dimChop(rest)
             #
@@ -196,25 +221,26 @@ class TiKZMaker(object):
                 # And above
                 #
                 # Q3 = P2
-                # Q2 = (2*P1+P2)/3 [ -P2 ^above^]
+                # Q2 = (2*P1+P2)/3 [ -P2 ^see above^]
                 # Q1 = 
                 pt3 = pt2
                 pt2 = self.pt2str(2.0*(x1-x2)/3.0,2.0*(y1-y2)/3)
                 pt1 = self.pt2str(2.0*x1/3.0,      2.0*y1/3)
                 path_controls(inc,pt1,pt2,pt3)
-        elif spec in [ "M","m"]:
-            if first is False: print(";",file=self._output)
-            print("\\draw %s%s" % (inc,pt),file=self._output)
-        elif spec in ["L","l"] or spec is None:
-            print ("-- %s%s" % (inc,pt),file=self._output)
-        return rest,False,incremental
+        else:
+            print ("Warning: didn't process '%s' in path" % spec,file=sys.stderr)
+        return rest,False,incremental,style
     
     def process_path(self,elem):
         d = elem.attrib['d']
         f = True 
         i = False
+        try:
+            style = self.style2colour(elem.attrib['style'])
+        except:
+            style = ""
         while d is not None and len(d) > 0:
-            d,f,i = self.path_chop(d,f,i)
+            d,f,i,style = self.path_chop(d,f,i,style)
         print (";",file=self._output)
 
     def get_align(self,style):
