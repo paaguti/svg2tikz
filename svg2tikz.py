@@ -376,6 +376,7 @@ class TiKZMaker(object):
             print ("""\\documentclass[tikz,border=1mm]{standalone}
 \\usepackage{tikz}
 \\usetikzlibrary{shapes}
+\\usepackage[utf8]{inputenc}
 \\makeatletter
 \\begin{document}""",file=self._output)
 
@@ -430,5 +431,6 @@ def main():
         processor.mkTikz(etree.parse(remainder[0]))
     except IndexError:
         parser.print_help()
+
 if __name__ == "__main__":
-   main()
+    main()
