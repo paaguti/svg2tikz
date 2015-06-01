@@ -15,7 +15,7 @@ class TiKZMaker(object):
     _output     = None
     _unit       = "mm"
     _standalone = True
-    _debug      = False
+    _debug      = True
 
     align     = re.compile(r"text-align:([^;]+);")
     ffamily   = re.compile(r"font-family:([^;]+);")
@@ -151,48 +151,72 @@ class TiKZMaker(object):
         print ("\\draw %s %s ellipse %s ;" % (style,self.pt2str(x,y),self.pt2str(rx,ry,' and ')),
                file=self._output)
 
-    dimRe  = re.compile(r"(-?\d+(\.\d+)?),(-?\d+(\.\d+)?)(\s+(\S.*))?")
-
+    dimRe  = re.compile(r"(-?\d+(\.\d+)?)[, ](-?\d+(\.\d+)?)(\s+(\S.*))?")
     def dimChop(self,s):
         m=TiKZMaker.dimRe.match(s)
         x=float(m.group(1))
         y=float(m.group(3))
         return self.pt2str(x,y),m.group(6),x,y
+                
+    numRe = re.compile (r"(-?\d+(\.\d+)?)(\s+(\S.*))?")
+    def numChop(self,s):
+        m = TiKZMaker.numRe.match(s)
+        x = float(m.group(1))
+        return m.group(1),m.group(4),x
+        
+    pathRe = re.compile(r"(([aAcCqQlLmM] )?(-?\d+(\.\d+)?),(-?\d+(\.\d+)?))(\s+(\S.*))?")
 
-    pathRe = re.compile(r"(([cCqQlLmM] )?(-?\d+(\.\d+)?),(-?\d+(\.\d+)?))(\s+(\S.*))?")
-
-    def path_chop(self,d,first,incremental,style):
+    # path_chop
+    # @param:
+    #  d:           path descriptor (string)
+    #  first:       whether this is the first element or not
+    #  last_spec:   last operation specification
+    #  incremental: whether we are in incremental mode or not
+    #  style:       style to use
+    # @return
+    #  rest:        path description after processing
+    #  first:       should be False
+    #  spec:        spec for next operation
+    #  incremental: whether next operation will be incremental
+    
+    def path_chop(self,d,first,last_spec,incremental,style):
         def path_controls(inc,p1,p2,p3):
             print (".. controls %s%s and %s%s .. %s%s" % (inc,p1,inc,p2,inc,p3),file=self._output)
         
 
-        # print (" -->> %s" % d,file=sys.stderr)
-        # print (d,file=sys.stderr)
-        if d == 'z':
+        print (" -->> %s" % d,file=sys.stderr)
+        if d[0].upper() == 'Z':
             print ("-- cycle",file=self._output)
-            return None, False, False,style            
+            return None, False, last_spec, incremental            
         m = TiKZMaker.pathRe.match(d)
         # print (m,file=sys.stderr)
-        # print (m.groups(),file=sys.stderr)
+        print (" -- [%s] >> %s" % (m.group(2),m.group(1)),file=sys.stderr)
+        if m is None:
+            print ("'%s' does not have cCqQlLmM element" % d,file=sys.stderr)
+            return None, False, last_spec, incremental
         spec = m.group(2)
         x1 = float(m.group(3))
         y1 = float(m.group(5))
         pt = self.pt2str(x1,y1)
         
+        # spec=last_spec[0] if spec is None else spec[0]
+        if spec is None and last_spec is not None:
+            if last_spec[0].upper() == 'M':
+                spec = 'L' if last_spec[0] == 'M' else 'l'
+
         if spec is not None:
-            incremental = spec[0] != spec[0].upper()
+            spec = spec[0]
+            incremental = spec != spec.upper()
         inc = "++" if incremental else ""
             
         rest = m.group(8)
-        # print (" --]]>> [%s|%s]" % (spec,rest),file=sys.stderr)
+        ## print (" --]]>> [%s|%s]" % (spec,rest),file=sys.stderr)
 
-        spec = spec[0] if spec is not None else None
-
-        if spec in [ "M","m"]:
+        if spec in ["L","l"] or spec is None:
+            print ("-- %s%s" % (inc,pt),file=self._output)
+        elif spec in [ "M","m"]:
             if first is False: print(";",file=self._output)
             print("\\draw %s %s%s" % (style,inc,pt),file=self._output)
-        elif spec in ["L","l"] or spec is None:
-            print ("-- %s%s" % (inc,pt),file=self._output)
         elif spec in ["c", "C"]:
             pt2,rest,x2,y2 = self.dimChop(rest)
             pt3,rest,x3,y3 = self.dimChop(rest)
@@ -227,20 +251,35 @@ class TiKZMaker(object):
                 pt2 = self.pt2str(2.0*(x1-x2)/3.0,2.0*(y1-y2)/3)
                 pt1 = self.pt2str(2.0*x1/3.0,      2.0*y1/3)
                 path_controls(inc,pt1,pt2,pt3)
+        elif spec in ["A","a"]:
+            # print ("%s << %s %s" % (spec,pt,rest),file=sys.stderr)
+            xrot,rest,_xrot   = self.numChop(rest)
+            large,rest,_large = self.numChop(rest)
+            swap,rest,_large  = self.numChop(rest)
+            pt2,rest,_x,_y    = self.dimChop(rest)
+            print ("-- %s%s" % (inc,pt2),file=self._output)
+            # print ("%s <> %s" % (spec,rest),file=sys.stderr)
+            
         else:
             print ("Warning: didn't process '%s' in path" % spec,file=sys.stderr)
-        return rest,False,incremental,style
+        return rest,False,spec,incremental
     
     def process_path(self,elem):
         d = elem.attrib['d']
+        pid = elem.attrib['id']
         f = True 
         i = False
+        print ("%% path id='%s'" % pid,file=self._output)
+        print ("%% path spec='%s'" % d,file=self._output)
         try:
             style = self.style2colour(elem.attrib['style'])
         except:
             style = ""
+        spec = None
         while d is not None and len(d) > 0:
-            d,f,i,style = self.path_chop(d,f,i,style)
+            ## print (self.path_chop(d,f,spec,i,style),file=sys.stderr)
+            
+            d,f,spec,i = self.path_chop(d,f,spec,i,style)
         print (";",file=self._output)
 
     def get_align(self,style):
@@ -370,16 +409,18 @@ class TiKZMaker(object):
             else:
                 print ("WARNING: <%s ../> not processed" % tag,file=sys.stderr)
 
-    def mkTikz(self,svg):
-        units = self._unit
-        if self._standalone:
-            print ("""\\documentclass[tikz,border=1mm]{standalone}
+    def mkStandaloneTikz(self,svg):
+        print ("""\\documentclass[tikz,border=1mm]{standalone}
 \\usepackage{tikz}
 \\usetikzlibrary{shapes}
 \\usepackage[utf8]{inputenc}
 \\makeatletter
 \\begin{document}""",file=self._output)
+        self.mkTikz(svg)
+        print ("\\end{document}",file=self._output)
 
+    def mkTikz(self,svg):
+        units = self._unit
         print ("""\\begin{tikzpicture}
 \\begin{scope}[yscale=-1]""",file=self._output)
         if self._debug:
@@ -398,8 +439,6 @@ class TiKZMaker(object):
 
         print ("""\\end{scope}
 \\end{tikzpicture}""",file=self._output)
-        if self._standalone:
-            print ("\\end{document}",file=self._output)
         self._unit = units
 
 def main():
@@ -425,10 +464,13 @@ def main():
         print (" %s --> %s " % (remainder[0],options.output),file=sys.stderr)
 
     processor = TiKZMaker(sys.stdout if options.output is None else codecs.open(options.output,"w","utf-8"),
-                          standalone=options.standalone, 
                           debug=options.debug)
     try:
-        processor.mkTikz(etree.parse(remainder[0]))
+        if options.standalone:
+            processor.mkStandaloneTikz(etree.parse(remainder[0]))
+        else:
+            processor.mkTikz(etree.parse(remainder[0]))
+            
     except IndexError:
         parser.print_help()
 
