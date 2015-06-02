@@ -184,13 +184,13 @@ class TiKZMaker(object):
             print (".. controls %s%s and %s%s .. %s%s" % (inc,p1,inc,p2,inc,p3),file=self._output)
         
 
-        print (" -->> %s" % d,file=sys.stderr)
+        if self._debug:
+            print (" -->> %s" % d,file=sys.stderr)
         if d[0].upper() == 'Z':
             print ("-- cycle",file=self._output)
             return None, False, last_spec, incremental            
         m = TiKZMaker.pathRe.match(d)
         # print (m,file=sys.stderr)
-        print (" -- [%s] >> %s" % (m.group(2),m.group(1)),file=sys.stderr)
         if m is None:
             print ("'%s' does not have cCqQlLmM element" % d,file=sys.stderr)
             return None, False, last_spec, incremental
@@ -198,6 +198,8 @@ class TiKZMaker(object):
         x1 = float(m.group(3))
         y1 = float(m.group(5))
         pt = self.pt2str(x1,y1)
+        if self._debug:
+            print (" -- [%s] >> %s" % (spec,m.group(1)),file=sys.stderr)
         
         # spec=last_spec[0] if spec is None else spec[0]
         if spec is None and last_spec is not None:
@@ -215,7 +217,7 @@ class TiKZMaker(object):
         if spec in ["L","l"] or spec is None:
             print ("-- %s%s" % (inc,pt),file=self._output)
         elif spec in [ "M","m"]:
-            if first is False: print(";",file=self._output)
+            if not first: print(";",file=self._output)
             print("\\draw %s %s%s" % (style,inc,pt),file=self._output)
         elif spec in ["c", "C"]:
             pt2,rest,x2,y2 = self.dimChop(rest)
@@ -252,11 +254,15 @@ class TiKZMaker(object):
                 pt1 = self.pt2str(2.0*x1/3.0,      2.0*y1/3)
                 path_controls(inc,pt1,pt2,pt3)
         elif spec in ["A","a"]:
-            # print ("%s << %s %s" % (spec,pt,rest),file=sys.stderr)
+            print ("%% A %s << %s %s" % (spec,pt,rest),file=sys._output)
             xrot,rest,_xrot   = self.numChop(rest)
+            print ("%% A %s << %s %s" % (spec,pt,rest),file=sys._output)
             large,rest,_large = self.numChop(rest)
+            print ("%% A %s << %s %s" % (spec,pt,rest),file=sys._output)
             swap,rest,_large  = self.numChop(rest)
+            print ("%% A %s << %s %s" % (spec,pt,rest),file=sys._output)
             pt2,rest,_x,_y    = self.dimChop(rest)
+            print ("%% A %s << %s %s" % (spec,pt,rest),file=sys._output)
             print ("-- %s%s" % (inc,pt2),file=self._output)
             # print ("%s <> %s" % (spec,rest),file=sys.stderr)
             
@@ -460,7 +466,8 @@ def main():
     
     options, remainder = parser.parse_args()
     if options.auto:
-        options.output = remainder[0].replace(".svg",".tex")
+        import os
+        options.output = os.path.splitext(remainder[0])[0] + ".tex"
         print (" %s --> %s " % (remainder[0],options.output),file=sys.stderr)
 
     processor = TiKZMaker(sys.stdout if options.output is None else codecs.open(options.output,"w","utf-8"),
