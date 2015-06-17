@@ -22,6 +22,7 @@ class TiKZMaker(object):
     ffamily   = re.compile(r"font-family:([^;]+);")
     fsize     = re.compile(r"font-size:(\d+(\.\d+)?)px;")
     stroke    = re.compile(r"stroke:(none|#[0-9a-f]{6});")
+    stwidth   = re.compile(r"stroke-width:(\d+\.\d+);")
     fill      = re.compile(r"fill:(none|#[0-9a-f]{6});")
 
     def __init__(self, output=sys.stdout, standalone = False,debug=False,unit="mm"):
@@ -145,6 +146,13 @@ Throws exception when no solutions are found, else returns the two points.
                 print ("\\definecolor{dc}{RGB}{%d,%d,%d}" % self.hex2rgb(colour),file=self._output)
                 result.append("draw=dc")
         except: pass
+        m = TiKZMaker.stwidth.findall(style)
+        try:
+            swidth = float(m[0])
+            if self._debug:
+                print ("stroke-width=%.3f" % swidth,file=sys.stderr)
+            result.append("line width=%.3f%s" % (swidth,self._unit))
+        except: pass
         m = TiKZMaker.fill.findall(style)
         if self._debug: print ("fill = %s" % m,file=sys.stderr)
         try:
@@ -228,10 +236,21 @@ Throws exception when no solutions are found, else returns the two points.
     def path_chop(self,d,first,last_spec,incremental,style):
 
         def path_controls(inc,p1,p2,p3):
-            print (".. controls %s%s and %s%s .. %s%s" % (inc,p1,inc,p2,inc,p3),file=self._output)
-        
+            print (".. controls %s%s and %s%s .. %s%s" % (inc,p1,inc,p2,inc,p3),
+                   file=self._output)
 
-        if True: # self._debug:
+        def path_arc(inc,arc,lge,comment=False):
+            x,y,alpha,beta,rx,ry = arc
+            print ("%s%s%s arc (%5.1f:%5.1f:%s and %s)" %
+                   ("%% " if comment else "",
+                    inc, 
+                    self.pt2str(x,y),
+                    alpha if lge else beta,
+                    beta  if lge else alpha,
+                    self.str2u(rx),self.str2u(rx)),file=self._output)
+
+
+        if self._debug:
             print ("[%s] -->> %s" % (last_spec,d),file=sys.stderr)
         if d[0].upper() == 'Z':
             print ("-- cycle",file=self._output)
@@ -306,21 +325,18 @@ Throws exception when no solutions are found, else returns the two points.
             #
             # First 'point' were rx and ry
             #
-            xrot,rest,_xrot   = self.intChop(rest)
-            large,rest,_large = self.intChop(rest)
-            swap,rest,_swap  = self.intChop(rest)
+            _,rest,xrot  = self.intChop(rest)
+            _,rest,large = self.intChop(rest)
+            _,rest,swap  = self.intChop(rest)
             pt2,rest,_x,_y    = self.dimChop(rest) # this is the second point
+            _large =  large == 0
+            _swap =   swap  == 1
             try:
                 arcs = self.svg_ellipse_arc(_x,_y,x1,y1)
                 if self._debug: print("arcs: ",arcs,file=sys.stderr)
-                arc = arcs[0 if _swap != 0 else 1]
-                x,y,alpha,beta,rx,ry = arc
-                print ("%s%s arc (%5.1f:%5.1f:%s and %s)" %
-                       (inc, 
-                        self.pt2str(x,y),
-                        alpha if _large == 0 else beta,
-                        beta  if _large == 0 else alpha,
-                        self.str2u(rx),self.str2u(rx)),file=self._output)
+                path_arc(inc,arcs[0 if _swap else 1],_large,False)
+                path_arc(inc,arcs[1 if _swap else 0],_large,True)
+                
             except Exception,e:
                 print ("ERROR: <%s> Couldn't process spec: %c %6.1f,%6.1f %d %d %d %6.1f,%6.1f" %
                        (e, spec, x1, y1, _xrot, _large, _swap, _x, _y), file=sys.stderr)
