@@ -10,6 +10,7 @@ from lxml import etree
 import sys
 import re
 import codecs
+import math
 
 class TiKZMaker(object):
     _output     = None
@@ -54,6 +55,45 @@ class TiKZMaker(object):
         #     print (m.groups(),file=sys.stderr)
         return m.group(1)
 
+    def circle_center(self,x1,y1,r):
+        """Using the algebraic solution: we have one line passing throgh the origin and (x1,y1)
+We are looking for two points that are equidistant from the origin and (x1,y1). These are on a line
+that is orthogonal to the first one and passes through (x1/2, y1/2).
+
+Throws exception when no solutions are found, else returns the two points.
+
+@param:  x1,y1 : second point for the circular arc
+@param:  r     : radius of the circular arc
+
+@returns: [(xa,ya),(xb,yb)] : the two centers for the arcs
+@throws Exception if no center is found"""
+        l1 = math.pow(r,2.0) - math.pow(0.5 * x1,2.0) - math.pow(0.5 * y1,2.0)
+        l2 = math.pow(x1,2.0) + math.pow(y1,2.0)
+        l = math.sqrt(l1/l2)
+        xa = 0.5*x1 - l * y1
+        ya = 0.5*y1 + l * x1
+        xb = 0.5*x1 + l * y1
+        yb = 0.5*y1 - l * x1
+        return [(xa,ya),(xb,yb)]
+
+    def svg_circle_arc(self,x1,y1,r):
+        """Get the specs for the arc as (centre_x,centre_y,alpha,beta,radius) """
+        res = []
+        for pt in self.circle_center(x1,y1,r):
+            alpha = math.atan2(-1.0 * y1, -1.0 * x1) * 180.0 / math.pi
+            beta  = math.atan2(y1-pt[1], x1 - pt[0]) * 180.0 / math.pi
+            res.append((pt[0],pt[1],alpha,beta,r))
+            # print (res,file=sys.stderr)
+        return res
+    
+    def svg_ellipse_arc(self,x1,y1,rx,ry):
+        mu = ry/rx
+        res = []
+        for arc in self.svg_circle_arc(x1*mu,y1,ry):
+            res.append((arc[0]/mu,arc[1],arc[2],arc[3],rx,ry))
+            # print (res,file=sys.stderr)
+        return res
+    
     def get_loc(self,elem):
         # print (elem.tag,elem.attrib)
         x = float(elem.attrib['x'])
@@ -256,18 +296,34 @@ class TiKZMaker(object):
                 pt1 = self.pt2str(2.0*x1/3.0,      2.0*y1/3)
                 path_controls(inc,pt1,pt2,pt3)
         elif spec in ["A","a"]:
-            print ("%% A %s << %s %s" % (spec,pt,rest),file=self._output)
+            #
+            # First 'point' were rx and ry
+            #
             xrot,rest,_xrot   = self.numChop(rest)
-            print ("%% A %s << %s %s" % (spec,pt,rest),file=self._output)
             large,rest,_large = self.numChop(rest)
-            print ("%% A %s << %s %s" % (spec,pt,rest),file=self._output)
-            swap,rest,_large  = self.numChop(rest)
-            print ("%% A %s << %s %s" % (spec,pt,rest),file=self._output)
-            pt2,rest,_x,_y    = self.dimChop(rest)
-            print ("%% A %s << %s %s" % (spec,pt,rest),file=self._output)
-            print ("-- %s%s" % (inc,pt2),file=self._output)
-            # print ("%s <> %s" % (spec,rest),file=sys.stderr)
-            
+            swap,rest,_swap  = self.numChop(rest)
+            pt2,rest,_x,_y    = self.dimChop(rest) # this is the second point
+            try:
+                # print ("before svg_ellipse_arc",file=sys.stderr)
+                arcs = self.svg_ellipse_arc(_x,_y,x1,y1)
+                # print ("after svg_ellipse_arc",file=sys.stderr)
+                # print("arcs: ",arcs,file=sys.stderr)
+                arc = arcs[0 if int(_swap) == 0 else 1]
+                print("arc:  ",arc,file=sys.stderr)
+                x,y,alpha,beta,rx,ry = arc
+                print("unpacked", file=sys.stderr)
+                print ("%s%s arc (%5.1f:%5.1f:%s and %s)" %
+                       (inc, 
+                        self.pt2str(x,y),
+                        alpha if int(_large) == 0 else beta,
+                        beta  if int(_large) == 0 else alpha,
+                        self.str2u(rx),self.str2u(rx)),file=self._output)
+            except Exception,e:
+                print ("ERROR: Couldn't process spec: %c %6.1f,%6.1f %f %f %f %6.1f,%6.1f" %
+                       (spec, x1,y1,_xrot,_large,_swap,_x,_y), file=sys.stderr)
+                # print ("Exception was ",e,file=sys.stderr)
+                print ("%%%% ERROR: Couldn't process spec: %c %6.1f,%6.1f %f %f %f %6.1f,%6.1f" %
+                       (spec, x1,y1,_xrot,_large,_swap,_x,_y), file=self._output)
         else:
             print ("Warning: didn't process '%s' in path" % spec,file=sys.stderr)
         return rest,False,spec,incremental
