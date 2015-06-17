@@ -308,7 +308,7 @@ Throws exception when no solutions are found, else returns the two points.
                 arcs = self.svg_ellipse_arc(_x,_y,x1,y1)
                 # print ("after svg_ellipse_arc",file=sys.stderr)
                 # print("arcs: ",arcs,file=sys.stderr)
-                arc = arcs[0 if int(_swap) == 0 else 1]
+                arc = arcs[0 if int(_swap) != 0 else 1]
                 print("arc:  ",arc,file=sys.stderr)
                 x,y,alpha,beta,rx,ry = arc
                 print("unpacked", file=sys.stderr)
