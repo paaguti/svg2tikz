@@ -199,12 +199,16 @@ Throws exception when no solutions are found, else returns the two points.
         x=float(m.group(1))
         y=float(m.group(3))
         return self.pt2str(x,y),m.group(6),x,y
-                
+
+    intRe = re.compile (r"(-?\d+)(\s+(\S.*))?")
+    def intChop(self,s):
+        m = TiKZMaker.intRe.match(s)
+        return m.group(1),m.group(3),int(m.group(1))
+    
     numRe = re.compile (r"(-?\d+(\.\d+)?)(\s+(\S.*))?")
     def numChop(self,s):
         m = TiKZMaker.numRe.match(s)
-        x = float(m.group(1))
-        return m.group(1),m.group(4),x
+        return m.group(1),m.group(4),float(m.group(1))
         
     pathRe = re.compile(r"(([aAcCqQlLmM] )?(-?\d+(\.\d+)?),(-?\d+(\.\d+)?))(\s+(\S.*))?")
 
@@ -222,12 +226,13 @@ Throws exception when no solutions are found, else returns the two points.
     #  incremental: whether next operation will be incremental
     
     def path_chop(self,d,first,last_spec,incremental,style):
+
         def path_controls(inc,p1,p2,p3):
             print (".. controls %s%s and %s%s .. %s%s" % (inc,p1,inc,p2,inc,p3),file=self._output)
         
 
-        if self._debug:
-            print (" -->> %s" % d,file=sys.stderr)
+        if True: # self._debug:
+            print ("[%s] -->> %s" % (last_spec,d),file=sys.stderr)
         if d[0].upper() == 'Z':
             print ("-- cycle",file=self._output)
             return None, False, last_spec, incremental            
@@ -247,6 +252,8 @@ Throws exception when no solutions are found, else returns the two points.
         if spec is None and last_spec is not None:
             if last_spec[0].upper() == 'M':
                 spec = 'L' if last_spec[0] == 'M' else 'l'
+            else:
+                spec = last_spec
 
         if spec is not None:
             spec = spec[0]
@@ -299,30 +306,25 @@ Throws exception when no solutions are found, else returns the two points.
             #
             # First 'point' were rx and ry
             #
-            xrot,rest,_xrot   = self.numChop(rest)
-            large,rest,_large = self.numChop(rest)
-            swap,rest,_swap  = self.numChop(rest)
+            xrot,rest,_xrot   = self.intChop(rest)
+            large,rest,_large = self.intChop(rest)
+            swap,rest,_swap  = self.intChop(rest)
             pt2,rest,_x,_y    = self.dimChop(rest) # this is the second point
             try:
-                # print ("before svg_ellipse_arc",file=sys.stderr)
                 arcs = self.svg_ellipse_arc(_x,_y,x1,y1)
-                # print ("after svg_ellipse_arc",file=sys.stderr)
-                # print("arcs: ",arcs,file=sys.stderr)
-                arc = arcs[0 if int(_swap) != 0 else 1]
-                print("arc:  ",arc,file=sys.stderr)
+                if self._debug: print("arcs: ",arcs,file=sys.stderr)
+                arc = arcs[0 if _swap != 0 else 1]
                 x,y,alpha,beta,rx,ry = arc
-                print("unpacked", file=sys.stderr)
                 print ("%s%s arc (%5.1f:%5.1f:%s and %s)" %
                        (inc, 
                         self.pt2str(x,y),
-                        alpha if int(_large) == 0 else beta,
-                        beta  if int(_large) == 0 else alpha,
+                        alpha if _large == 0 else beta,
+                        beta  if _large == 0 else alpha,
                         self.str2u(rx),self.str2u(rx)),file=self._output)
             except Exception,e:
-                print ("ERROR: Couldn't process spec: %c %6.1f,%6.1f %f %f %f %6.1f,%6.1f" %
-                       (spec, x1,y1,_xrot,_large,_swap,_x,_y), file=sys.stderr)
-                # print ("Exception was ",e,file=sys.stderr)
-                print ("%%%% ERROR: Couldn't process spec: %c %6.1f,%6.1f %f %f %f %6.1f,%6.1f" %
+                print ("ERROR: <%s> Couldn't process spec: %c %6.1f,%6.1f %d %d %d %6.1f,%6.1f" %
+                       (e, spec, x1, y1, _xrot, _large, _swap, _x, _y), file=sys.stderr)
+                print ("%%%% ERROR: Couldn't process spec: %c %6.1f,%6.1f %d %d %d %d %6.1f,%6.1f" %
                        (spec, x1,y1,_xrot,_large,_swap,_x,_y), file=self._output)
         else:
             print ("Warning: didn't process '%s' in path" % spec,file=sys.stderr)
