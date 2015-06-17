@@ -15,7 +15,7 @@ class TiKZMaker(object):
     _output     = None
     _unit       = "mm"
     _standalone = True
-    _debug      = True
+    _debug      = False
 
     align     = re.compile(r"text-align:([^;]+);")
     ffamily   = re.compile(r"font-family:([^;]+);")
@@ -28,6 +28,8 @@ class TiKZMaker(object):
         self._unit       = unit
         self._standalone = standalone
         self._debug      = debug
+        if self._debug: print ("Debugging!",file=sys.stderr)
+        
         
     def str2u(self,s):
         f = float(s) if not isinstance(s,float) else s
@@ -192,7 +194,7 @@ class TiKZMaker(object):
         m = TiKZMaker.pathRe.match(d)
         # print (m,file=sys.stderr)
         if m is None:
-            print ("'%s' does not have cCqQlLmM element" % d,file=sys.stderr)
+            print ("'%s' does not have aAcCqQlLmM element" % d,file=sys.stderr)
             return None, False, last_spec, incremental
         spec = m.group(2)
         x1 = float(m.group(3))
@@ -231,11 +233,11 @@ class TiKZMaker(object):
             if incremental:
                 pt2 = self.pt2str(x2-x3,y2-y3)
             else:
-                print ("** Warning: check controls",file=sys.stderr)
+                if self._debug: print ("** Warning: check controls",file=sys.stderr)
                 print ("%%%% Warning: check controls",file=self._output)
             path_controls (inc,pt,pt2,pt3)
         elif spec in ["Q","q"]:
-            print (">> Decoding quadratic Bezier curve",file=sys.stderr)
+            if self._debug: print (">> Decoding quadratic Bezier curve",file=sys.stderr)
             pt2,rest,x2,y2 = self.dimChop(rest)
             if spec == "Q":
                 print ("%% Warning: ignoring (abs) Quadratic Bezier",file=sys.stderr)
@@ -254,15 +256,15 @@ class TiKZMaker(object):
                 pt1 = self.pt2str(2.0*x1/3.0,      2.0*y1/3)
                 path_controls(inc,pt1,pt2,pt3)
         elif spec in ["A","a"]:
-            print ("%% A %s << %s %s" % (spec,pt,rest),file=sys._output)
+            print ("%% A %s << %s %s" % (spec,pt,rest),file=self._output)
             xrot,rest,_xrot   = self.numChop(rest)
-            print ("%% A %s << %s %s" % (spec,pt,rest),file=sys._output)
+            print ("%% A %s << %s %s" % (spec,pt,rest),file=self._output)
             large,rest,_large = self.numChop(rest)
-            print ("%% A %s << %s %s" % (spec,pt,rest),file=sys._output)
+            print ("%% A %s << %s %s" % (spec,pt,rest),file=self._output)
             swap,rest,_large  = self.numChop(rest)
-            print ("%% A %s << %s %s" % (spec,pt,rest),file=sys._output)
+            print ("%% A %s << %s %s" % (spec,pt,rest),file=self._output)
             pt2,rest,_x,_y    = self.dimChop(rest)
-            print ("%% A %s << %s %s" % (spec,pt,rest),file=sys._output)
+            print ("%% A %s << %s %s" % (spec,pt,rest),file=self._output)
             print ("-- %s%s" % (inc,pt2),file=self._output)
             # print ("%s <> %s" % (spec,rest),file=sys.stderr)
             
@@ -427,8 +429,7 @@ class TiKZMaker(object):
 
     def mkTikz(self,svg):
         units = self._unit
-        print ("""\\begin{tikzpicture}
-\\begin{scope}[yscale=-1]""",file=self._output)
+        print ("\\begin{tikzpicture}[yscale=-1]",file=self._output)
         if self._debug:
             print (svg.getroot().attrib,file=sys.stderr)
         for elem in svg.getroot():
@@ -443,9 +444,8 @@ class TiKZMaker(object):
                 except: 
                     self._unit = units
 
-        print ("""\\end{scope}
-\\end{tikzpicture}""",file=self._output)
-        self._unit = units
+        print ("\\end{tikzpicture}",file=self._output)
+        # self._unit = units
 
 def main():
     import optparse
