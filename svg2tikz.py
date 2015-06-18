@@ -45,7 +45,10 @@ class TiKZMaker(object):
     
     def addNS(self,tag,defNS="{http://www.w3.org/2000/svg}"):
         return defNS+tag
-
+        
+    def sodipodi(self,tag):
+        return self.addNS(tag,defNS='{http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd}')
+        
     namedTagRe = re.compile(r"\{[^}]+\}(.*)")
 
     def delNS(self,tag):
@@ -81,8 +84,8 @@ Throws exception when no solutions are found, else returns the two points.
         """Get the specs for the arc as (centre_x,centre_y,alpha,beta,radius) """
         res = []
         for pt in self.circle_center(x1,y1,r):
-            alpha = math.atan2(-1.0 * y1, -1.0 * x1) * 180.0 / math.pi
-            beta  = math.atan2(y1-pt[1], x1 - pt[0]) * 180.0 / math.pi
+            alpha = math.degrees(math.atan2(-1.0 * y1, -1.0 * x1))
+            beta  = math.degrees(math.atan2(y1-pt[1], x1 - pt[0]))
             res.append((pt[0],pt[1],alpha,beta,r))
             # print (res,file=sys.stderr)
         return res
@@ -358,6 +361,36 @@ Throws exception when no solutions are found, else returns the two points.
         except:
             style = ""
         spec = None
+        try:
+            # print ("Trying to see if we have an arc",file=sys.stderr)
+            # print ("Lookinf for a '%s'" % self.sodipodi('type'),file=sys.stderr)
+            # print ("In: ",elem.attrib,file=sys.stderr)
+            
+            if elem.get(self.sodipodi('type')) == 'arc':
+                if self._debug: print ("So we have an arc!",file=sys.stderr)
+                
+                rx    = float(elem.get(self.sodipodi('rx')))
+                ry    = float(elem.get(self.sodipodi('ry')))
+                cx    = float(elem.get(self.sodipodi('cx')))
+                cy    = float(elem.get(self.sodipodi('cy')))
+                start = float(elem.get(self.sodipodi('start')))
+                end   = float(elem.get(self.sodipodi('end')))
+
+                x1 = cx + rx * math.cos(start)
+                y1 = cy + ry * math.sin(start)
+                
+                print ("\\draw%s %s arc (%.2f:%.2f:%s and %s);" % 
+                        (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
+                        self.str2u(rx),self.str2u(ry)),file=self._output)
+                if self._debug:
+                    print ("\\draw%s %s arc (%.2f:%.2f:%s and %s);" % 
+                        (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
+                        self.str2u(rx),self.str2u(ry)),file=sys.stderr)
+                
+                d = None
+        except Exception,e: 
+            print ("Exception %s" % e,file=sys.stderr)
+            pass
         while d is not None and len(d) > 0:
             ## print (self.path_chop(d,f,spec,i,style),file=sys.stderr)
             
