@@ -35,12 +35,14 @@ class TiKZMaker(object):
         
     def str2u(self,s):
         f = float(s) if not isinstance(s,float) else s
-        return "%.1f%s" % (f,self._unit)
+        return "%.2f%s" % (f,self._unit)
 
-    def u2str(self,x):
+    def u2str(self,x=None):
+        assert x is not None
         return "(%s)" % self.str2u(x)
 
-    def pt2str(self,x,y,sep=','):
+    def pt2str(self,x=None,y=None,sep=','):
+        assert x is not None and y is not None
         return "(%s%s%s)" % (self.str2u(x),sep,self.str2u(y))
     
     def addNS(self,tag,defNS="{http://www.w3.org/2000/svg}"):
@@ -181,9 +183,9 @@ Throws exception when no solutions are found, else returns the two points.
                file=self._output)
 
     def process_circle(self,elem):
-        x    = float(elem.attrib['cx'])
-        y    = float(elem.attrib['cy'])
-        r    = float(elem.attrib['r'])
+        x    = float(elem.get('cx'))
+        y    = float(elem.get('cy'))
+        r    = float(elem.get('r'))
         try:
             style = self.style2colour(elem.attrib['style'])
         except:
@@ -192,10 +194,10 @@ Throws exception when no solutions are found, else returns the two points.
                file=self._output)
 
     def process_ellipse(self,elem):
-        x    = float(elem.attrib['cx'])
-        y    = float(elem.attrib['cy'])
-        rx   = float(elem.attrib['rx'])
-        ry   = float(elem.attrib['ry'])
+        x    = float(elem.get('cx'))
+        y    = float(elem.get('cy'))
+        rx   = float(elem.get('rx'))
+        ry   = float(elem.get('ry'))
         # style = elem.attrib['style']
         try:
             style = self.style2colour(elem.attrib['style'])
@@ -386,8 +388,8 @@ Throws exception when no solutions are found, else returns the two points.
                     print ("\\draw%s %s arc (%.2f:%.2f:%s and %s);" % 
                         (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
                         self.str2u(rx),self.str2u(ry)),file=sys.stderr)
-                
-                d = None
+
+                return
         except Exception,e: 
             print ("Exception %s" % e,file=sys.stderr)
             pass
