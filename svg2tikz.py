@@ -378,6 +378,8 @@ Throws exception when no solutions are found, else returns the two points.
                 start = float(elem.get(self.sodipodi('start')))
                 end   = float(elem.get(self.sodipodi('end')))
 
+                if end < start: end = end + 2.0 * math.pi
+                
                 x1 = cx + rx * math.cos(start)
                 y1 = cy + ry * math.sin(start)
                 
