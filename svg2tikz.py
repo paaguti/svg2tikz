@@ -117,18 +117,20 @@ Throws exception when no solutions are found, else returns the two points.
         r = int("0x"+colour[1:3],0)
         g = int("0x"+colour[3:5],0)
         b = int("0x"+colour[5:],0)
-        return r,g,b
+        return "{RGB}{%d,%d,%d}" % (r,g,b)
 
     def hex2colour(self,colour):
         if self._debug:
             print ("hex2colour(%s) = " % colour,end="",file=sys.stderr)
         result = None
-        d = {'none'   : 'none', 
+        d = {'none'    : 'none', 
              '#000000' : 'black',
              '#ff0000' : 'red',
              '#00ff00' : 'green',
              '#0000ff' : 'blue',
              '#ffff00' : 'yellow',
+             '#00ffff' : 'magenta',
+             '#ff00ff' : 'cyan',
              '#ffffff' : 'white' } 
         try :
             result = d[colour]
@@ -137,48 +139,53 @@ Throws exception when no solutions are found, else returns the two points.
             print (result,file=sys.stderr)
         return result
 
+
+    def handle_colour(self,pattern,style,stdef,cdef,ignore=None,cmd=None):
+        m = pattern.findall(style)
+        colour=m[0]
+        if self._debug: print ("%s = %s" % (cmd,colour),file=sys.stderr)
+        hc = self.hex2colour(colour)
+        if ignore is None or ignore != hc:
+            if hc is None:
+                hc = cmd[0]+"c"
+                cdef.append("\\definecolor{%s}%s" % (hc,self.hex2rgb(colour)))
+            stdef.append(cmd+"="+hc)
+        if self._debug:
+            print("returning:  ",cdef,stdef, file=sys.stderr)
+
+
     def style2colour(self,style):
         if self._debug: print ("style2colour(%s)" % style,file=sys.stderr)
-        result = []
-        m = TiKZMaker.stroke.findall(style)
+        stdef = []
+        cdef  = []
         try:
-            colour=m[0]
-            if self._debug: print ("stroke = %s" % colour,file=sys.stderr)
-            hc = self.hex2colour(colour)
-            if hc is not None:
-                if hc != 'black': result.append("draw=%s" % hc)
-            else:
-                print ("\\definecolor{dc}{RGB}{%d,%d,%d}" % self.hex2rgb(colour),file=self._output)
-                result.append("draw=dc")
+            self.handle_colour(TiKZMaker.stroke,style,stdef,cdef,ignore='black',cmd='draw')
+        except: pass
+        try:
+            self.handle_colour(TiKZMaker.fill,style,stdef,cdef,cmd='fill')
         except: pass
         m = TiKZMaker.stwidth.findall(style)
         try:
             swidth = float(m[0])
             if self._debug:
-                print ("stroke-width=%.3f" % swidth,file=sys.stderr)
-            result.append("line width=%.3f%s" % (swidth,self._unit))
+                print ("stroke-width=%.3f" % (swidth),file=sys.stderr)
+            stdef.append("line width=%.3f%s" % (swidth,self._unit))
         except: pass
-        m = TiKZMaker.fill.findall(style)
-        if self._debug: print ("fill = %s" % m,file=sys.stderr)
-        try:
-            colour=m[0]
-            hc = self.hex2colour(colour)
-            if hc is not None:
-                result.append("fill=%s" % hc)
-            else:
-                print ("\\definecolor{fc}{RGB}{%d,%d,%d}" % self.hex2rgb(colour),file=self._output)
-                result.append("fill=fc")
-        except: pass
-        if len(result) == 0: return ""
-        return "[%s]" % ",".join(result)
+        return "[%s]" % ",".join(stdef) if len(stdef) > 0 else "", "\n".join(cdef)
 
     def process_rect(self,elem):
+        if self._debug:
+            print ("***\n** rectangle\n***",file=sys.stderr)
         x,y   = self.get_loc(elem)
         w,h   = self.get_dim(elem)
         try:
-            style = self.style2colour(elem.attrib['style'])
+            style,cdefs = self.style2colour(elem.attrib['style'])
+            if self._debug: print("Result: style=%s\ncdefs= %s" % (style,cdefs),file=sys.stderr)
         except:
             style = ""
+            cdefs = ""
+        if len(cdefs) > 0:
+            print (cdefs,file=self._output)
         print ("\\draw %s %s rectangle %s ;" % (style,self.pt2str(x,y),self.pt2str(w+x,h+y)),
                file=self._output)
 
@@ -187,9 +194,11 @@ Throws exception when no solutions are found, else returns the two points.
         y    = float(elem.get('cy'))
         r    = float(elem.get('r'))
         try:
-            style = self.style2colour(elem.attrib['style'])
+            style,cdefs = self.style2colour(elem.attrib['style'])
         except:
             style = ""
+            cdefs = ""
+        print (cdefs,file=self._output)
         print ("\\draw %s %s circle %s ;" % (style,self.pt2str(x,y),self.u2str(r)),
                file=self._output)
 
@@ -200,9 +209,11 @@ Throws exception when no solutions are found, else returns the two points.
         ry   = float(elem.get('ry'))
         # style = elem.attrib['style']
         try:
-            style = self.style2colour(elem.attrib['style'])
+            style,cdefs = self.style2colour(elem.attrib['style'])
         except:
             style = ""
+            cdefs = ""
+        print (cdefs,file=self._output)
         print ("\\draw %s %s ellipse %s ;" % (style,self.pt2str(x,y),self.pt2str(rx,ry,' and ')),
                file=self._output)
 
@@ -359,9 +370,10 @@ Throws exception when no solutions are found, else returns the two points.
         print ("%% path id='%s'" % pid,file=self._output)
         print ("%% path spec='%s'" % d,file=self._output)
         try:
-            style = self.style2colour(elem.attrib['style'])
+            style,cdefs = self.style2colour(elem.attrib['style'])
         except:
             style = ""
+            cdefs = ""
         spec = None
         try:
             # print ("Trying to see if we have an arc",file=sys.stderr)
@@ -383,10 +395,13 @@ Throws exception when no solutions are found, else returns the two points.
                 x1 = cx + rx * math.cos(start)
                 y1 = cy + ry * math.sin(start)
                 
+                if len(cdefs) > 0: print (cdefs,file=self._output)
+                
                 print ("\\draw%s %s arc (%.2f:%.2f:%s and %s);" % 
                         (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
                         self.str2u(rx),self.str2u(ry)),file=self._output)
                 if self._debug:
+                    if len(cdefs) > 0: print (cdefs,file=sys.stderr)
                     print ("\\draw%s %s arc (%.2f:%.2f:%s and %s);" % 
                         (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
                         self.str2u(rx),self.str2u(ry)),file=sys.stderr)
@@ -584,11 +599,15 @@ def main():
     processor = TiKZMaker(sys.stdout if options.output is None else codecs.open(options.output,"w","utf-8"),
                           debug=options.debug)
     try:
+        root = etree.parse(remainder[0])
+        #root,id = etree.parseid(remainder[0])
+        #if options.debug:
+        #    print(etree.tostring(root,pretty_print=True),file=sys.stderr)
+        #    print(id,file=sys.stderr)
         if options.standalone:
-            processor.mkStandaloneTikz(etree.parse(remainder[0]))
+            processor.mkStandaloneTikz(root)
         else:
-            processor.mkTikz(etree.parse(remainder[0]))
-            
+            processor.mkTikz(root)
     except IndexError:
         parser.print_help()
 
