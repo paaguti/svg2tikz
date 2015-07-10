@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
+
 <svg
    xmlns:dc="http://purl.org/dc/elements/1.1/"
    xmlns:cc="http://creativecommons.org/ns#"
@@ -22,14 +23,14 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="7.6232708"
-     inkscape:cx="275.84831"
-     inkscape:cy="57.486368"
+     inkscape:zoom="1.7890873"
+     inkscape:cx="279.68504"
+     inkscape:cy="198.4252"
      inkscape:document-units="mm"
      inkscape:current-layer="g4511"
      showgrid="true"
-     inkscape:window-width="1280"
-     inkscape:window-height="711"
+     inkscape:window-width="1609"
+     inkscape:window-height="891"
      inkscape:window-x="38"
      inkscape:window-y="22"
      inkscape:window-maximized="0"
@@ -125,7 +126,7 @@
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cc" />
     <path
-       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.26458335px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       style="fill:none;fill-rule:evenodd;stroke:#00ffff;stroke-width:0.70555556;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
        d="M 140.22917,281.12494 127,254.6666 l 0,-23.8125 18.52084,0"
        id="path4512"
        inkscape:connector-curvature="0" />

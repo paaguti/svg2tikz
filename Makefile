@@ -4,7 +4,7 @@ tikz.pdf:	tikz.tex
 	pdflatex -interaction=nonstopmode tikz > /dev/null
 
 tikz.tex:	svg2tikz.py tikz.svg
-	python svg2tikz.py -s -d -a tikz.svg
+	python svg2tikz.py -s -a tikz.svg
 
 clean:
 	rm -vf *.aux *.log *~ tikz.tex

@@ -22,7 +22,7 @@ class TiKZMaker(object):
     ffamily   = re.compile(r"font-family:([^;]+);")
     fsize     = re.compile(r"font-size:(\d+(\.\d+)?)px;")
     stroke    = re.compile(r"stroke:(none|#[0-9a-f]{6});")
-    stwidth   = re.compile(r"stroke-width:(\d+\.\d+);")
+    stwidth   = re.compile(r"stroke-width:(\d+\.\d+(px|mm)?);?")
     fill      = re.compile(r"fill:(none|#[0-9a-f]{6});")
 
     def __init__(self, output=sys.stdout, standalone = False,debug=False,unit="mm"):
@@ -119,7 +119,7 @@ Throws exception when no solutions are found, else returns the two points.
         b = int("0x"+colour[5:],0)
         return "{RGB}{%d,%d,%d}" % (r,g,b)
 
-    def hex2colour(self,colour):
+    def hex2colour(self,colour,cname=None,cdef=None):
         if self._debug:
             print ("hex2colour(%s) = " % colour,end="",file=sys.stderr)
         result = None
@@ -129,50 +129,45 @@ Throws exception when no solutions are found, else returns the two points.
              '#00ff00' : 'green',
              '#0000ff' : 'blue',
              '#ffff00' : 'yellow',
-             '#00ffff' : 'magenta',
-             '#ff00ff' : 'cyan',
+             '#00ffff' : 'cyan',
+             '#ff00ff' : 'magenta',
              '#ffffff' : 'white' } 
         try :
             result = d[colour]
-        except: pass
+        except:
+            if cname is not None:
+                cdef.append('\\definecolor{%s}%s' % (cname,self.hex2rgb(colour)))
+                result = cname
         if self._debug:
             print (result,file=sys.stderr)
         return result
-
-
-    def handle_colour(self,pattern,style,stdef,cdef,ignore=None,cmd=None):
-        m = pattern.findall(style)
-        colour=m[0]
-        if self._debug: print ("%s = %s" % (cmd,colour),file=sys.stderr)
-        hc = self.hex2colour(colour)
-        if ignore is None or ignore != hc:
-            if hc is None:
-                hc = cmd[0]+"c"
-                cdef.append("\\definecolor{%s}%s" % (hc,self.hex2rgb(colour)))
-            stdef.append(cmd+"="+hc)
-        if self._debug:
-            print("returning:  ",cdef,stdef, file=sys.stderr)
 
 
     def style2colour(self,style):
         if self._debug: print ("style2colour(%s)" % style,file=sys.stderr)
         stdef = []
         cdef  = []
-        try:
-            self.handle_colour(TiKZMaker.stroke,style,stdef,cdef,ignore='black',cmd='draw')
-        except: pass
-        try:
-            self.handle_colour(TiKZMaker.fill,style,stdef,cdef,cmd='fill')
-        except: pass
-        m = TiKZMaker.stwidth.findall(style)
-        try:
-            swidth = float(m[0])
-            if self._debug:
-                print ("stroke-width=%.3f" % (swidth),file=sys.stderr)
-            stdef.append("line width=%.3f%s" % (swidth,self._unit))
-        except: pass
-        return "[%s]" % ",".join(stdef) if len(stdef) > 0 else "", "\n".join(cdef)
+        for s in style.split(';'):
+            m = s.split(':')
+            # if self._debug: print ("Processing '%s=%s'" % (m[0],m[1]),file=sys.stderr) 
 
+            if m[0] == 'stroke':
+                # if self._debug: print ("Found '%s'" % m[0],file=sys.stderr)
+                stdef.append("draw=%s" % self.hex2colour(m[1],cname='dc',cdef=cdef))
+            elif m[0] == 'fill':
+                # if self._debug: print ("Found '%s'" % m[0],file=sys.stderr)
+                stdef.append("fill=%s" % self.hex2colour(m[1],cname='fc',cdef=cdef))
+            elif m[0] == 'stroke-width':
+                # if self._debug: print ("Found '%s'" % m[0],file=sys.stderr)
+                if m[1].endswith('px'):
+                    print('Ignoring stroke width: %s' % m[1],file=sys.stderr)
+                else:
+                    stdef.append("line width=" + m[1])
+
+        result = "[%s]" % ",".join(stdef) if len(stdef) > 0 else "", "\n".join(cdef)
+        if self._debug: print("Returns %s" % repr(result), file=sys.stderr)
+        return result
+    
     def process_rect(self,elem):
         if self._debug:
             print ("***\n** rectangle\n***",file=sys.stderr)
@@ -371,6 +366,9 @@ Throws exception when no solutions are found, else returns the two points.
         print ("%% path spec='%s'" % d,file=self._output)
         try:
             style,cdefs = self.style2colour(elem.attrib['style'])
+            print ("%% style= '%s'" % style,file=sys.stderr)
+            print ("%% colour defs = '%s'" % cdefs,file=sys.stderr)
+
         except:
             style = ""
             cdefs = ""
@@ -410,6 +408,8 @@ Throws exception when no solutions are found, else returns the two points.
         except Exception,e: 
             print ("Exception %s" % e,file=sys.stderr)
             pass
+        if len(cdefs) > 0: print (cdefs,file=self._output)
+
         while d is not None and len(d) > 0:
             ## print (self.path_chop(d,f,spec,i,style),file=sys.stderr)
             
@@ -543,13 +543,8 @@ Throws exception when no solutions are found, else returns the two points.
             else:
                 print ("WARNING: <%s ../> not processed" % tag,file=sys.stderr)
 
-    def mkStandaloneTikz(self,svg):
-        print ("""\\documentclass[tikz,border=1mm]{standalone}
-\\usepackage{tikz}
-\\usetikzlibrary{shapes}
-\\usepackage[utf8]{inputenc}
-\\makeatletter
-\\begin{document}""",file=self._output)
+    def mkStandaloneTikz(self,svg,border="1mm"):
+        print ("\\documentclass[tikz,border=%s]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{shapes}\n\\usepackage[utf8]{inputenc}\n\\makeatletter\n\\begin{document}" % border,file=self._output)
         self.mkTikz(svg)
         print ("\\end{document}",file=self._output)
 
@@ -586,6 +581,9 @@ def main():
     parser.add_option("-o","--output",     dest="output",
                       default=None,  
                       help="Write to file(default is stdout)")
+    parser.add_option("-b","--border",     dest="border",
+                      default="1mm",  
+                      help="Set standalone border (default:1mm)")
     parser.add_option("-s","--standalone", dest="standalone", 
                       action = "store_true", default=False, 
                       help="Make a standalone LaTEX file")
@@ -605,7 +603,7 @@ def main():
         #    print(etree.tostring(root,pretty_print=True),file=sys.stderr)
         #    print(id,file=sys.stderr)
         if options.standalone:
-            processor.mkStandaloneTikz(root)
+            processor.mkStandaloneTikz(root,border=options.border)
         else:
             processor.mkTikz(root)
     except IndexError:
