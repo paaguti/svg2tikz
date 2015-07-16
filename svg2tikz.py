@@ -17,25 +17,41 @@ class TiKZMaker(object):
     _unit       = "mm"
     _standalone = True
     _debug      = False
-
+    _symbols    = None
+    
     align     = re.compile(r"text-align:([^;]+);")
     ffamily   = re.compile(r"font-family:([^;]+);")
     fsize     = re.compile(r"font-size:(\d+(\.\d+)?)px;")
-    stroke    = re.compile(r"stroke:(none|#[0-9a-f]{6});")
+    stroke    = re.compile(r"stroke:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
     stwidth   = re.compile(r"stroke-width:(\d+\.\d+(px|mm)?);?")
-    fill      = re.compile(r"fill:(none|#[0-9a-f]{6});")
-
+    fill      = re.compile(r"fill:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
+    str2uRe   = re.compile(r"(-?\d*.?\d*e?[+-]?\d*)([a-z]{2})?")
+    
     def __init__(self, output=sys.stdout, standalone = False,debug=False,unit="mm"):
         self._output     = output
         self._unit       = unit
         self._standalone = standalone
         self._debug      = debug
         if self._debug: print ("Debugging!",file=sys.stderr)
-        
-        
+
     def str2u(self,s):
-        f = float(s) if not isinstance(s,float) else s
-        return "%.2f%s" % (f,self._unit)
+        #f = float(s) if not isinstance(s,float) else s
+        if self._debug:
+            print ("str2u(%s)" % repr(s),file=sys.stderr)
+        if isinstance(s,float):
+            f =s
+            u = self._unit
+        else:
+            e = TiKZMaker.str2uRe.findall(s)[0]
+            n,u = e
+            f = float(n)
+            if u == "px":
+                f *= 25.4/72.0
+                u = "mm"
+            else:
+                if u == "":
+                    u = self._unit
+        return "%.2f%s" % (f,u)
 
     def u2str(self,x=None):
         assert x is not None
@@ -159,11 +175,7 @@ Throws exception when no solutions are found, else returns the two points.
                 stdef.append("fill=%s" % self.hex2colour(m[1],cname='fc',cdef=cdef))
             elif m[0] == 'stroke-width':
                 # if self._debug: print ("Found '%s'" % m[0],file=sys.stderr)
-                if m[1].endswith('px'):
-                    print('Ignoring stroke width: %s' % m[1],file=sys.stderr)
-                else:
-                    stdef.append("line width=" + m[1])
-
+                stdef.append("line width=" + self.str2u(m[1]))
         result = "[%s]" % ",".join(stdef) if len(stdef) > 0 else "", "\n".join(cdef)
         if self._debug: print("Returns %s" % repr(result), file=sys.stderr)
         return result
@@ -229,7 +241,7 @@ Throws exception when no solutions are found, else returns the two points.
         m = TiKZMaker.numRe.match(s)
         return m.group(1),m.group(4),float(m.group(1))
         
-    pathRe = re.compile(r"(([aAcCqQlLmM] )?(-?\d+(\.\d+)?),(-?\d+(\.\d+)?))(\s+(\S.*))?")
+    pathRe = re.compile(r"(([aAcCqQlLmM] )?(-?\d+(\.\d+)?)[ ,](-?\d+(\.\d+)?))(\s+(\S.*))?")
 
     # path_chop
     # @param:
@@ -356,18 +368,49 @@ Throws exception when no solutions are found, else returns the two points.
         else:
             print ("Warning: didn't process '%s' in path" % spec,file=sys.stderr)
         return rest,False,spec,incremental
-    
+
+    def process_use(self,elem,debug=True):
+        #print("TODO: process %s" % etree.tostring(elem))
+        href = None
+        x = None
+        y = None
+        for n in elem.attrib:
+            print (n)
+            if re.search(r"({[^}]+})?href",n):
+                if debug: print ("reference to %s" % elem.get(n))
+                href = elem.get(n)
+            if n == 'x': x=float(elem.get(n))
+            if n == 'y': y=float(elem.get(n))
+        assert href is not None, "use does not reference a symbol"
+        assert href[0] == "#", "Only local hrefs allowed for symbols (%s)" % href
+        
+        if x is not None and y is not None:
+            print ("\\begin{scope}[shift={(%s,%s)}]" % (self.str2u(x),self.str2u(y)),file=self._output)
+
+        for s in self._symbols:
+            if href[1:] == s.get("id"):
+                self.process_g(s)
+                if x is not None and y is not None:
+                    print ("\\end{scope}",file=self._output)
+                return
+        print ("ERROR: didn't find referenced symbol '%s'" % href[1:],file=sys.stderr)
+        if x is not None and y is not None:
+            print ("\\end{scope}",file=self._output)
+        
     def process_path(self,elem):
         d = elem.attrib['d']
-        pid = elem.attrib['id']
         f = True 
         i = False
-        print ("%% path id='%s'" % pid,file=self._output)
+        try:
+            pid = elem.attrib['id']
+            print ("%% path id='%s'" % pid,file=self._output)
+        except: pass
         print ("%% path spec='%s'" % d,file=self._output)
         try:
             style,cdefs = self.style2colour(elem.attrib['style'])
-            print ("%% style= '%s'" % style,file=sys.stderr)
-            print ("%% colour defs = '%s'" % cdefs,file=sys.stderr)
+            if self._debug:
+                print ("%% style= '%s'" % style,file=sys.stderr)
+                print ("%% colour defs = '%s'" % cdefs,file=sys.stderr)
 
         except:
             style = ""
@@ -520,14 +563,20 @@ Throws exception when no solutions are found, else returns the two points.
 
             
     def process_g(self,elem):
-        if len([c for c in elem]) == 0: return
+        if len(elem) == 0: return
+        g_style = elem.get("style")
+        if g_style is not None:
+            print ("\\begin{scope}",file=self._output)
+            print ("TODO: process global style '%s' in group" % g_style,file=sys.stderr)
+
         xlate = {
             'g':       lambda e: self.process_g(e),
             'text':    lambda e: self.process_text(e),
             'rect':    lambda e: self.process_rect(e),
             'circle':  lambda e: self.process_circle(e),
             'ellipse': lambda e: self.process_ellipse(e),
-            'path':    lambda e: self.process_path(e)
+            'path':    lambda e: self.process_path(e),
+            'use':     lambda e: self.process_use(e)
         }
 
         # print ("process_g(%s)" % elem.tag,file=sys.stderr)
@@ -542,6 +591,8 @@ Throws exception when no solutions are found, else returns the two points.
                     break
             else:
                 print ("WARNING: <%s ../> not processed" % tag,file=sys.stderr)
+        if g_style is not None:
+            print ("\\end{scope}",file=self._output)
 
     def mkStandaloneTikz(self,svg,border="1mm"):
         print ("\\documentclass[tikz,border=%s]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{shapes}\n\\usepackage[utf8]{inputenc}\n\\makeatletter\n\\begin{document}" % border,file=self._output)
@@ -549,6 +600,11 @@ Throws exception when no solutions are found, else returns the two points.
         print ("\\end{document}",file=self._output)
 
     def mkTikz(self,svg):
+        self._symbols = svg.xpath("//svg:symbol",namespaces={'svg':'http://www.w3.org/2000/svg'})
+        if self._debug:
+            print ("Getting symbols with XPATH")
+            for s in self._symbols:
+                print(etree.tostring(s))
         units = self._unit
         print ("\\begin{tikzpicture}[yscale=-1]",file=self._output)
         if self._debug:
@@ -567,7 +623,7 @@ Throws exception when no solutions are found, else returns the two points.
 
         print ("\\end{tikzpicture}",file=self._output)
         # self._unit = units
-
+        
 def main():
     import optparse
     parser = optparse.OptionParser(description=__doc__,
@@ -597,15 +653,15 @@ def main():
     processor = TiKZMaker(sys.stdout if options.output is None else codecs.open(options.output,"w","utf-8"),
                           debug=options.debug)
     try:
-        root = etree.parse(remainder[0])
+        tree = etree.parse(remainder[0])
         #root,id = etree.parseid(remainder[0])
         #if options.debug:
         #    print(etree.tostring(root,pretty_print=True),file=sys.stderr)
         #    print(id,file=sys.stderr)
         if options.standalone:
-            processor.mkStandaloneTikz(root,border=options.border)
+            processor.mkStandaloneTikz(tree,border=options.border)
         else:
-            processor.mkTikz(root)
+            processor.mkTikz(tree)
     except IndexError:
         parser.print_help()
 
