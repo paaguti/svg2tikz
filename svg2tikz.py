@@ -384,16 +384,17 @@ Throws exception when no solutions are found, else returns the two points.
         assert href is not None, "use does not reference a symbol"
         assert href[0] == "#", "Only local hrefs allowed for symbols (%s)" % href
         
-        if x is not None and y is not None:
+        try:
             print ("\\begin{scope}[shift={%s}]" % (self.pt2str(x,y)),file=self._output)
-
+        except: pass
+        
         for s in self._symbols:
             if href[1:] == s.get("id"):
                 self.process_g(s)
-                if x is not None and y is not None:
-                    print ("\\end{scope}",file=self._output)
-                return
-        print ("ERROR: didn't find referenced symbol '%s'" % href[1:],file=sys.stderr)
+                break
+        else:
+            print ("ERROR: didn't find referenced symbol '%s'" % href[1:],file=sys.stderr)
+            
         if x is not None and y is not None:
             print ("\\end{scope}",file=self._output)
         
@@ -490,7 +491,7 @@ Throws exception when no solutions are found, else returns the two points.
                 try:
                     size = 0.0
                     pxRe = re.compile(r"(-?\d+(\.\d+(e?[+-]?\d+)))([a-z]{2})?")
-                    print ("**TODO mkFSize(%s)" % style)
+                    if self._debug: print ("**TODO refine mkFSize(%s)" % style)
                     val,_,_,unit = pxRe.match(style).groups()
                     fval = float(val)
                     if fval < 4.0: return "font=\\small"
@@ -499,20 +500,20 @@ Throws exception when no solutions are found, else returns the two points.
                 except:
                     return ""
             result = []
-            xlatestyle = {'fill' : lambda s: self.hex2colour(s,cdefs),
+            xlatestyle = {'fill' :        lambda s: self.hex2colour(s,cdefs),
                           'font-family' : lambda s: mkFont(s),
-                          'text-align': lambda s: mkAlign(s),
-                          'font-size' : lambda s: mkFSize(s)
+                          'text-align':   lambda s: mkAlign(s),
+                          'font-size' :   lambda s: mkFSize(s)
             }
 
             result = [xlatestyle[x](styledict[x]) for x in xlatestyle if x in styledict]
-
-            print (repr(result))
+            if self._debug: print (repr(result),end=" --> ",file=sys.stderr)
             fspec = "font=" + "".join([f[5:] for f in result if f.startswith("font=")])
             result = [ r for r in result if len(r)>0 and not r.startswith("font=")]
             if len(fspec) > 5: result.append(fspec)
+            if self._debug: print (repr(result),file=sys.stderr)
             # result = [r for r in result if r is not None and len(r)>0]
-            return "" if len(result) == 0 else "[" + ",".join(result) + "]",cdefs
+            return "" if len(result) == 0 else "[" + ",".join(result) + "]","\n".join(cdefs)
         
         txt = elem.text
         stdict = style2dict(style)
