@@ -19,9 +19,9 @@ class TiKZMaker(object):
     _debug      = False
     _symbols    = None
     
-    align     = re.compile(r"text-align:([^;]+);")
-    ffamily   = re.compile(r"font-family:([^;]+);")
-    fsize     = re.compile(r"font-size:(\d+(\.\d+)?)px;")
+#    align     = re.compile(r"text-align:([^;]+);")
+#    ffamily   = re.compile(r"font-family:([^;]+);")
+#    fsize     = re.compile(r"font-size:(\d+(\.\d+)?)px;")
     stroke    = re.compile(r"stroke:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
     stwidth   = re.compile(r"stroke-width:(\d+\.\d+(px|mm)?);?")
     fill      = re.compile(r"fill:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
@@ -385,7 +385,7 @@ Throws exception when no solutions are found, else returns the two points.
         assert href[0] == "#", "Only local hrefs allowed for symbols (%s)" % href
         
         if x is not None and y is not None:
-            print ("\\begin{scope}[shift={(%s,%s)}]" % (self.str2u(x),self.str2u(y)),file=self._output)
+            print ("\\begin{scope}[shift={%s}]" % (self.pt2str(x,y)),file=self._output)
 
         for s in self._symbols:
             if href[1:] == s.get("id"):
@@ -454,64 +454,81 @@ Throws exception when no solutions are found, else returns the two points.
         if len(cdefs) > 0: print (cdefs,file=self._output)
 
         while d is not None and len(d) > 0:
-            ## print (self.path_chop(d,f,spec,i,style),file=sys.stderr)
-            
+            ## print (self.path_chop(d,f,spec,i,style),file=sys.stderr)            
             d,f,spec,i = self.path_chop(d,f,spec,i,style)
         print (";",file=self._output)
 
-    def get_align(self,style):
-        m = TiKZMaker.align.findall(style)
-        try:
-            al = {'start':'left','center':'center','end':'right' }[m[0]]
-        except:
-            al = "center"
-        if al != "center":
-            print ("** Warning: ignored string alignment to the %s" % al,file=sys.stderr)
-            print ("%%%% This element will be anyhow centered!",file=self._output)
-        return "align=%s" % al
-
-    def get_font(self,style):
-
-        fnames = {
-            "serif" :      "",
-            "Serif" :      "",
-            "sans-serif" : "\\sffamily",
-            "Sans" :       "\\sffamily",
-        }
-    
-        result = []
-        size = 0.0
-        fn = None
-        try:
-            ssize,_ = TiKZMaker.fsize.findall(style)[0]
-            size = float(ssize)
-            if size <= 4.0 : result.append("\\small")
-            elif size <= 6.0: pass
-            else: result.append("\\large")
-        except: pass
-        try:
-            fn = TiKZMaker.ffamily.findall(style)[0]
-            if fn in fnames:
-                if len(fnames[fn]):
-                    result.append(fnames[fn])
-        except: pass
-        if self._debug:
-            print (">> %s" % style,file=sys.stderr)
-            print ("** Font %s %.1f => %s" % (fn,size,result),file=sys.stderr)
-        return "font=%s" % "".join(result) if len(result) != 0 else None
-
     def process_tspan(self,elem,x,y,style):
+        def style2dict(st,styledict = {}):
+            __s = [s for s in st.split(";") if len(s) > 0]
+            for s in __s:
+                k,v = s.split(':')
+                styledict[k] = v
+            return styledict
+        
+        def dict2style(styledict={},cdefs=[]):
+            def mkFont(fname):
+                fnames = {
+                    # "serif" :      "",
+                    # "Serif" :      "",
+                    "sans-serif" : "\\sffamily",
+                    "Sans" :       "\\sffamily",
+                }
+                return "font="+fnames[fname] if fname in fnames else ""
+                
+            def mkAlign(style):
+                try:
+                    al = {'start':'left','center':'center','end':'right' }[style]
+                except:
+                    al = 'center'
+                if al != "center":
+                    print ("** Warning: ignored string alignment to the %s" % al,file=sys.stderr)
+                    print ("%%%% This element will be anyhow centered!",file=self._output)
+                return "align=%s" % al
+
+            def mkFSize(style):
+                try:
+                    size = 0.0
+                    pxRe = re.compile(r"(-?\d+(\.\d+(e?[+-]?\d+)))([a-z]{2})?")
+                    print ("**TODO mkFSize(%s)" % style)
+                    val,_,_,unit = pxRe.match(style).groups()
+                    fval = float(val)
+                    if fval < 4.0: return "font=\\small"
+                    if fval > 6.0: return "font=\\large"
+                    return ""
+                except:
+                    return ""
+            result = []
+            xlatestyle = {'fill' : lambda s: self.hex2colour(s,cdefs),
+                          'font-family' : lambda s: mkFont(s),
+                          'text-align': lambda s: mkAlign(s),
+                          'font-size' : lambda s: mkFSize(s)
+            }
+
+            result = [xlatestyle[x](styledict[x]) for x in xlatestyle if x in styledict]
+
+            print (repr(result))
+            fspec = "font=" + "".join([f[5:] for f in result if f.startswith("font=")])
+            result = [ r for r in result if len(r)>0 and not r.startswith("font=")]
+            if len(fspec) > 5: result.append(fspec)
+            # result = [r for r in result if r is not None and len(r)>0]
+            return "" if len(result) == 0 else "[" + ",".join(result) + "]",cdefs
+        
         txt = elem.text
+        stdict = style2dict(style)
         try:
             x,y = self.get_loc(elem)
         except: pass
         try:
-            style=elem.attrib['style']            
+            stdict = style2dict(elem.attrib['style'],styledict=stdict)            
         except: pass
-        styles = [self.get_align(style)]
-        f = self.get_font(style)
-        if f is not None: styles.append(f)
-        print ("\\node [%s] at %s { %s };" % (",".join(styles),self.pt2str(x,y),txt),
+        
+        # styles = [self.get_align(style)]
+        # f = self.get_font(style)
+        # if f is not None: styles.append(f)
+        s,c = dict2style(stdict)
+        if len(c)>0: print ("\n".join(c),file=self._output)
+        print ("\\node %s at %s { %s };" % (s,self.pt2str(x,y),txt),
                file=self._output)
         
     def process_text(self,elem):
@@ -522,6 +539,7 @@ Throws exception when no solutions are found, else returns the two points.
             for tspan in elem.findall(self.addNS('tspan')):
                 self.process_tspan(tspan,x,y,style)
         else:
+            print (etree.tostring(elem,pretty_print=True),file=sys.stderr)
             self.process_tspan(elem,x,y,style)
 
     transformRe = re.compile(r"(translate|rotate|matrix)\(([^)]+)\)")

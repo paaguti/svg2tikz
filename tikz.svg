@@ -14,7 +14,7 @@
    viewBox="0 0 148 105"
    id="svg2"
    version="1.1"
-   inkscape:version="0.91+devel+osxmenu r12913"
+   inkscape:version="0.91+devel+osxmenu r12922"
    sodipodi:docname="tikz.svg">
   <sodipodi:namedview
      id="base"
@@ -24,13 +24,13 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.7890873"
-     inkscape:cx="279.68504"
+     inkscape:cx="182.42875"
      inkscape:cy="198.4252"
      inkscape:document-units="mm"
      inkscape:current-layer="g4511"
      showgrid="true"
-     inkscape:window-width="1609"
-     inkscape:window-height="891"
+     inkscape:window-width="1280"
+     inkscape:window-height="752"
      inkscape:window-x="38"
      inkscape:window-y="22"
      inkscape:window-maximized="0"
@@ -49,7 +49,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -260,5 +260,17 @@
        sodipodi:end="3.9"
        d="m 98.241814,277.52441 a 6,3 0 0 1 -7.863202,-0.61112 6,3 0 0 1 0.265794,-3.97659"
        sodipodi:open="true" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:center;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#0000ff;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;"
+       x="58.208332"
+       y="257.31244"
+       id="text4167"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4169"
+         x="58.208332"
+         y="257.31244"
+         style="stroke-width:0.26458332px;fill:#0000ff;fill-opacity:1;">En azul</tspan></text>
   </g>
 </svg>
