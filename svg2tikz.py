@@ -18,10 +18,8 @@ class TiKZMaker(object):
     _standalone = True
     _debug      = False
     _symbols    = None
+    _nsmap      = None
     
-#    align     = re.compile(r"text-align:([^;]+);")
-#    ffamily   = re.compile(r"font-family:([^;]+);")
-#    fsize     = re.compile(r"font-size:(\d+(\.\d+)?)px;")
     stroke    = re.compile(r"stroke:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
     stwidth   = re.compile(r"stroke-width:(\d+\.\d+(px|mm)?);?")
     fill      = re.compile(r"fill:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
@@ -34,13 +32,14 @@ class TiKZMaker(object):
         self._debug      = debug
         if self._debug: print ("Debugging!",file=sys.stderr)
 
-    def str2u(self,s):
+    @classmethod
+    def str2u(cls,s):
         #f = float(s) if not isinstance(s,float) else s
-        if self._debug:
+        if cls._debug:
             print ("str2u(%s)" % repr(s),file=sys.stderr)
         if isinstance(s,float):
-            f =s
-            u = self._unit
+            f = s
+            u = cls._unit
         else:
             e = TiKZMaker.str2uRe.findall(s)[0]
             n,u = e
@@ -50,32 +49,33 @@ class TiKZMaker(object):
                 u = "mm"
             else:
                 if u == "":
-                    u = self._unit
+                    u = cls._unit
         return "%.2f%s" % (f,u)
 
-    def u2str(self,x=None):
+    @classmethod
+    def u2str(cls,x=None):
         assert x is not None
-        return "(%s)" % self.str2u(x)
+        return "(%s)" % cls.str2u(x)
 
-    def pt2str(self,x=None,y=None,sep=','):
+    @classmethod
+    def pt2str(cls,x=None,y=None,sep=','):
         assert x is not None and y is not None
-        return "(%s%s%s)" % (self.str2u(x),sep,self.str2u(y))
-    
-    def addNS(self,tag,defNS="{http://www.w3.org/2000/svg}"):
-        return defNS+tag
-        
-    def sodipodi(self,tag):
-        return self.addNS(tag,defNS='{http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd}')
-        
-    namedTagRe = re.compile(r"\{[^}]+\}(.*)")
+        return "(%s%s%s)" % (cls.str2u(x),sep,cls.str2u(y))
 
-    def delNS(self,tag):
+    @classmethod
+    def sodipodi(cls,elem,attr=None):
+        return elem.xpath("string(.//@sodipodi:%s)" % attr,namespaces=cls._nsmap)
+
+    namedTagRe = re.compile(r"({([^}]+)})(.*)")
+
+    @classmethod
+    def delNS(cls,tag):
         # if self._debug:
         #     print ("Full tag : '%s'" % tag,file=sys.stderr)
-        m = TiKZMaker.namedTagRe.match(tag)
-        # if self._debug:
-        #     print (m.groups(),file=sys.stderr)
-        return m.group(1)
+        m = cls.namedTagRe.match(tag)
+        if cls._debug:
+            print (m.groups(),file=sys.stderr)
+        return m.group(3)
 
     def circle_center(self,x1,y1,r):
         """Using the algebraic solution: we have one line passing throgh the origin and (x1,y1)
@@ -163,19 +163,18 @@ Throws exception when no solutions are found, else returns the two points.
         if self._debug: print ("style2colour(%s)" % style,file=sys.stderr)
         stdef = []
         cdef  = []
+        s2cDict = {
+            'stroke':       lambda c: "draw=" + self.hex2colour(c,cname='dc',cdef=cdef),
+            'fill':         lambda c: "fill=" + self.hex2colour(c,cname='fc',cdef=cdef),
+            'stroke-width': lambda c: "line width=" + self.str2u(c)
+        }
         for s in style.split(';'):
-            m = s.split(':')
-            # if self._debug: print ("Processing '%s=%s'" % (m[0],m[1]),file=sys.stderr) 
+            m,c = s.split(':')
+            # if self._debug: print ("Processing '%s=%s'" % (m,c),file=sys.stderr) 
+            if m in s2cDict:
+                # if self._debug: print ("Found '%s'" % m,file=sys.stderr)
+                stdef.append(s2cDict[m](c))
 
-            if m[0] == 'stroke':
-                # if self._debug: print ("Found '%s'" % m[0],file=sys.stderr)
-                stdef.append("draw=%s" % self.hex2colour(m[1],cname='dc',cdef=cdef))
-            elif m[0] == 'fill':
-                # if self._debug: print ("Found '%s'" % m[0],file=sys.stderr)
-                stdef.append("fill=%s" % self.hex2colour(m[1],cname='fc',cdef=cdef))
-            elif m[0] == 'stroke-width':
-                # if self._debug: print ("Found '%s'" % m[0],file=sys.stderr)
-                stdef.append("line width=" + self.str2u(m[1]))
         result = "[%s]" % ",".join(stdef) if len(stdef) > 0 else "", "\n".join(cdef)
         if self._debug: print("Returns %s" % repr(result), file=sys.stderr)
         return result
@@ -374,14 +373,16 @@ Throws exception when no solutions are found, else returns the two points.
         href = None
         x = None
         y = None
+        print("]>]>  "+elem.xpath("string(.//@href)",namespaces = self._nsmap),file=sys.stderr)
         for n in elem.attrib:
             print (n)
+            
             if re.search(r"({[^}]+})?href",n):
                 if debug: print ("reference to %s" % elem.get(n))
                 href = elem.get(n)
             if n == 'x': x=float(elem.get(n))
             if n == 'y': y=float(elem.get(n))
-        assert href is not None, "use does not reference a symbol"
+        assert href is not None, "use does not reference a symbol" % href
         assert href[0] == "#", "Only local hrefs allowed for symbols (%s)" % href
         
         try:
@@ -399,6 +400,7 @@ Throws exception when no solutions are found, else returns the two points.
             print ("\\end{scope}",file=self._output)
         
     def process_path(self,elem):
+            
         d = elem.attrib['d']
         f = True 
         i = False
@@ -418,42 +420,33 @@ Throws exception when no solutions are found, else returns the two points.
             cdefs = ""
         spec = None
         try:
-            # print ("Trying to see if we have an arc",file=sys.stderr)
-            # print ("Lookinf for a '%s'" % self.sodipodi('type'),file=sys.stderr)
-            # print ("In: ",elem.attrib,file=sys.stderr)
-            
-            if elem.get(self.sodipodi('type')) == 'arc':
-                if self._debug: print ("So we have an arc!",file=sys.stderr)
-                
-                rx    = float(elem.get(self.sodipodi('rx')))
-                ry    = float(elem.get(self.sodipodi('ry')))
-                cx    = float(elem.get(self.sodipodi('cx')))
-                cy    = float(elem.get(self.sodipodi('cy')))
-                start = float(elem.get(self.sodipodi('start')))
-                end   = float(elem.get(self.sodipodi('end')))
+            _type = elem.xpath("string(.//@sodipodi:type)" ,namespaces=self._nsmap)
+            if self._debug:
+                print ("sodipodi type is '%s'" % _type,file=sys.stderr)
+            if _type == 'arc':
+                rx    = float(elem.xpath("string(.//@sodipodi:rx)" ,namespaces=self._nsmap))
+                ry    = float(elem.xpath("string(.//@sodipodi:ry)" ,namespaces=self._nsmap))
+                cx    = float(elem.xpath("string(.//@sodipodi:cx)" ,namespaces=self._nsmap))
+                cy    = float(elem.xpath("string(.//@sodipodi:cy)" ,namespaces=self._nsmap))
+                start = float(elem.xpath("string(.//@sodipodi:start)" ,namespaces=self._nsmap))
+                end   = float(elem.xpath("string(.//@sodipodi:end)" ,namespaces=self._nsmap))
 
                 if end < start: end = end + 2.0 * math.pi
                 
                 x1 = cx + rx * math.cos(start)
                 y1 = cy + ry * math.sin(start)
-                
-                if len(cdefs) > 0: print (cdefs,file=self._output)
-                
-                print ("\\draw%s %s arc (%.2f:%.2f:%s and %s);" % 
-                        (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
-                        self.str2u(rx),self.str2u(ry)),file=self._output)
-                if self._debug:
-                    if len(cdefs) > 0: print (cdefs,file=sys.stderr)
-                    print ("\\draw%s %s arc (%.2f:%.2f:%s and %s);" % 
-                        (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
-                        self.str2u(rx),self.str2u(ry)),file=sys.stderr)
 
+                for f in [self._output,sys.stderr] if self._debug else [self._output]:
+                    if len(cdefs) > 0: print (cdefs,file=f)
+                    print ("\\draw %s %s arc (%.2f:%.2f:%s and %s);" % 
+                           (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
+                            self.str2u(rx),self.str2u(ry)),file=f)
                 return
         except Exception,e: 
-            print ("Exception %s" % e,file=sys.stderr)
+            print ("<*> Exception %s" % e,file=sys.stderr)
             pass
+        
         if len(cdefs) > 0: print (cdefs,file=self._output)
-
         while d is not None and len(d) > 0:
             ## print (self.path_chop(d,f,spec,i,style),file=sys.stderr)            
             d,f,spec,i = self.path_chop(d,f,spec,i,style)
@@ -465,6 +458,7 @@ Throws exception when no solutions are found, else returns the two points.
             for s in __s:
                 k,v = s.split(':')
                 styledict[k] = v
+            
             return styledict
         
         def dict2style(styledict={},cdefs=[]):
@@ -487,15 +481,21 @@ Throws exception when no solutions are found, else returns the two points.
                     print ("%%%% This element will be anyhow centered!",file=self._output)
                 return "align=%s" % al
 
+            pxRe = re.compile(r"(-?\d+(\.\d+(e?[+-]?\d+)))([a-z]{2})?")
             def mkFSize(style):
                 try:
                     size = 0.0
-                    pxRe = re.compile(r"(-?\d+(\.\d+(e?[+-]?\d+)))([a-z]{2})?")
                     if self._debug: print ("**TODO refine mkFSize(%s)" % style)
                     val,_,_,unit = pxRe.match(style).groups()
                     fval = float(val)
-                    if fval < 4.0: return "font=\\small"
-                    if fval > 6.0: return "font=\\large"
+                    for _min,_max,_result in [
+                            ( 0.0,  4.0, "font=\\small"),
+                            ( 4.0,  6.0, ""),
+                            ( 6.0, 10.0, "font=\\large"),
+                            (10.0, 1e06, "font=\\LARGE")
+                    ]:
+                        if _min <= fval and fval < _max:
+                            return _result
                     return ""
                 except:
                     return ""
@@ -537,7 +537,7 @@ Throws exception when no solutions are found, else returns the two points.
         txt   = elem.text
         style = elem.attrib['style']
         if txt is None:
-            for tspan in elem.findall(self.addNS('tspan')):
+            for tspan in elem.xpath(".//svg:tspan",namespaces=self._nsmap):
                 self.process_tspan(tspan,x,y,style)
         else:
             print (etree.tostring(elem,pretty_print=True),file=sys.stderr)
@@ -601,6 +601,7 @@ Throws exception when no solutions are found, else returns the two points.
         # print ("process_g(%s)" % elem.tag,file=sys.stderr)
         # print (" %d children" % len([c for c in elem]))
         for child in elem:
+            print (" &&& -> %s" % child.tag,file=sys.stderr)
             tag = self.delNS(child.tag)
             for x in xlate:
                 if tag == x:
@@ -619,66 +620,80 @@ Throws exception when no solutions are found, else returns the two points.
         print ("\\end{document}",file=self._output)
 
     def mkTikz(self,svg):
-        self._symbols = svg.xpath("//svg:symbol",namespaces={'svg':'http://www.w3.org/2000/svg'})
+        self._nsmap = { k:v for k,v in svg.getroot().nsmap.iteritems() if k is not None }
+        self._nsmap['svg'] = 'http://www.w3.org/2000/svg'
+        if self._debug: print (repr(self._nsmap),file=sys.stderr)
+
+        self._symbols = svg.xpath("//svg:symbol",namespaces=self._nsmap)
         if self._debug:
             print ("Getting symbols with XPATH")
             for s in self._symbols:
                 print(etree.tostring(s))
-        units = self._unit
-        print ("\\begin{tikzpicture}[yscale=-1]",file=self._output)
-        if self._debug:
-            print (svg.getroot().attrib,file=sys.stderr)
-        for elem in svg.getroot():
-            if self.delNS(elem.tag) == 'g':
-                if len([c for c in elem]) > 0:
-                    transform=self.transform2scope(elem)
-                    self.process_g(elem)
-                    if transform: print ("\\end{scope}",file=self._output)
-            elif self.delNS(elem.tag) == "namedview":
-                try:
-                    self._unit = elem.attrib["units"]
-                except: 
-                    self._unit = units
 
+        units = self._unit
+        self._unit = svg.xpath("string(//svg:svg/sodipodi:namedview/@units)",namespaces=self._nsmap)
+        if len(self._unit) == 0: self._unit = units
+        # for elem in svg.xpath("//svg:svg/sodipodi:namedview",namespaces=self._nsmap):
+        #     try:
+        #         self._unit = elem.attrib["units"]
+        #     except: 
+        #         self._unit = units
+        print ("\\begin{tikzpicture}[yscale=-1]",file=self._output)
+        # if self._debug:
+        #     print (svg.getroot().attrib,file=sys.stderr)
+        for elem in svg.xpath("//svg:svg/svg:g",namespaces=self._nsmap):
+            if len(elem) > 0:
+                transform = self.transform2scope(elem)
+                self.process_g(elem)
+                if transform: print ("\\end{scope}",file=self._output)
         print ("\\end{tikzpicture}",file=self._output)
         # self._unit = units
         
 def main():
-    import optparse
-    parser = optparse.OptionParser(description=__doc__,
-                                   usage="%prog [flags] file...")
-    parser.add_option("-d","--debug",      dest="debug",      
-                      action = "store_true", default=False, 
-                      help="Enable debugging messages")
-    parser.add_option("-a","--auto",      dest="auto",      
-                      action = "store_true", default=False, 
-                      help="Create output name from source")
-    parser.add_option("-o","--output",     dest="output",
-                      default=None,  
-                      help="Write to file(default is stdout)")
-    parser.add_option("-b","--border",     dest="border",
-                      default="1mm",  
-                      help="Set standalone border (default:1mm)")
-    parser.add_option("-s","--standalone", dest="standalone", 
-                      action = "store_true", default=False, 
-                      help="Make a standalone LaTEX file")
+    import argparse
     
-    options, remainder = parser.parse_args()
-    if options.auto:
-        import os
-        options.output = os.path.splitext(remainder[0])[0] + ".tex"
-        print (" %s --> %s " % (remainder[0],options.output),file=sys.stderr)
+    parser = argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter,epilog="")
+    
+    parser.add_argument("-d","--debug",
+                        dest="debug",      
+                        action = "store_true", 
+                        help="Enable debugging messages")
+    parser.add_argument("-a","--auto",
+                        dest="auto",      
+                        action = "store_true", 
+                        help="Create output name from source")
+    parser.add_argument("-o","--output",
+                        dest="output",
+                        default=None,  
+                        help="Write to file(default is stdout)")
+    parser.add_argument("-b","--border",
+                        dest="border",
+                        default="1mm",  
+                        help="Set standalone border (default:1mm)")
+    parser.add_argument("-s","--standalone",
+                        dest="standalone", 
+                        action = "store_true",
+                        help="Make a standalone LaTEX file")
+    parser.add_argument("--code",
+                        dest="code", 
+                        default="utf-8",
+                        help="Output file coding")
+    parser.add_argument("infile",metavar="INFILE", type=str, help="Input file")
+    
+    args = parser.parse_args()
 
-    processor = TiKZMaker(sys.stdout if options.output is None else codecs.open(options.output,"w","utf-8"),
-                          debug=options.debug)
+    if args.auto:
+        import os
+        args.output = os.path.splitext(args.infile)[0]+ ".tex"
+        print (" %s --> %s " % (args.infile,args.output),file=sys.stderr)
+
+    processor = TiKZMaker(sys.stdout if args.output is None else codecs.open(args.output,"w",args.code),
+                          debug=args.debug)
     try:
-        tree = etree.parse(remainder[0])
-        #root,id = etree.parseid(remainder[0])
-        #if options.debug:
-        #    print(etree.tostring(root,pretty_print=True),file=sys.stderr)
-        #    print(id,file=sys.stderr)
-        if options.standalone:
-            processor.mkStandaloneTikz(tree,border=options.border)
+        tree = etree.parse(args.infile)
+
+        if args.standalone:
+            processor.mkStandaloneTikz(tree,border=args.border)
         else:
             processor.mkTikz(tree)
     except IndexError:
