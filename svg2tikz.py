@@ -633,27 +633,19 @@ Throws exception when no solutions are found, else returns the two points.
         units = self._unit
         self._unit = svg.xpath("string(//svg:svg/sodipodi:namedview/@units)",namespaces=self._nsmap)
         if len(self._unit) == 0: self._unit = units
-        # for elem in svg.xpath("//svg:svg/sodipodi:namedview",namespaces=self._nsmap):
-        #     try:
-        #         self._unit = elem.attrib["units"]
-        #     except: 
-        #         self._unit = units
+
         print ("\\begin{tikzpicture}[yscale=-1]",file=self._output)
-        # if self._debug:
-        #     print (svg.getroot().attrib,file=sys.stderr)
         for elem in svg.xpath("//svg:svg/svg:g",namespaces=self._nsmap):
             if len(elem) > 0:
                 transform = self.transform2scope(elem)
                 self.process_g(elem)
                 if transform: print ("\\end{scope}",file=self._output)
         print ("\\end{tikzpicture}",file=self._output)
-        # self._unit = units
-        
+
 def main():
     import argparse
     
     parser = argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter,epilog="")
-    
     parser.add_argument("-d","--debug",
                         dest="debug",      
                         action = "store_true", 
