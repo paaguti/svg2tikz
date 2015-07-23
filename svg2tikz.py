@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-""" A program to generate TiKZ code from simple SVGs 
+""" A program to generate TiKZ code from inkscape-generated SVGs
+Future plans include generalising to SVG without depending on Inkscape
 """
 # (c) 2014 by Pedro A. Aranda Gutierrez; paaguti@hotmail.com
 # released under LGPL 3.0
@@ -19,18 +20,24 @@ class TiKZMaker(object):
     _debug      = False
     _symbols    = None
     _nsmap      = None
+    _verbose    = 1
+    _dpi        = 72
     
     stroke    = re.compile(r"stroke:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
     stwidth   = re.compile(r"stroke-width:(\d+\.\d+(px|mm)?);?")
     fill      = re.compile(r"fill:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
     str2uRe   = re.compile(r"(-?\d*.?\d*e?[+-]?\d*)([a-z]{2})?")
     
-    def __init__(self, output=sys.stdout, standalone = False,debug=False,unit="mm"):
+    def __init__(self, output=sys.stdout, standalone = False,debug=False,unit="mm",dpi=72):
         self._output     = output
         self._unit       = unit
         self._standalone = standalone
         self._debug      = debug
         if self._debug: print ("Debugging!",file=sys.stderr)
+
+    def log(self,msg,_verbose=1,end=None):
+        if self._debug and _verbose <= self._verbose:
+            print (msg,end=end,file=sys.stderr)
 
     @classmethod
     def str2u(cls,s):
@@ -53,11 +60,6 @@ class TiKZMaker(object):
         return "%.2f%s" % (f,u)
 
     @classmethod
-    def u2str(cls,x=None):
-        assert x is not None
-        return "(%s)" % cls.str2u(x)
-
-    @classmethod
     def pt2str(cls,x=None,y=None,sep=','):
         assert x is not None and y is not None
         return "(%s%s%s)" % (cls.str2u(x),sep,cls.str2u(y))
@@ -67,7 +69,6 @@ class TiKZMaker(object):
         return elem.xpath("string(.//@sodipodi:%s)" % attr,namespaces=cls._nsmap)
 
     namedTagRe = re.compile(r"({([^}]+)})(.*)")
-
     @classmethod
     def delNS(cls,tag):
         # if self._debug:
@@ -129,15 +130,14 @@ Throws exception when no solutions are found, else returns the two points.
         return w,h
 
     def hex2rgb(self,colour):
-        if self._debug: print ('hex2rgb(%s)' % colour,file=sys.stderr)
+        self.log('hex2rgb(%s)' % colour,_verbose=2)
         r = int("0x"+colour[1:3],0)
         g = int("0x"+colour[3:5],0)
         b = int("0x"+colour[5:],0)
         return "{RGB}{%d,%d,%d}" % (r,g,b)
 
     def hex2colour(self,colour,cname=None,cdef=None):
-        if self._debug:
-            print ("hex2colour(%s) = " % colour,end="",file=sys.stderr)
+        self.log("hex2colour(%s) = " % colour,end="",_verbose=2)
         result = None
         d = {'none'    : 'none', 
              '#000000' : 'black',
@@ -154,13 +154,11 @@ Throws exception when no solutions are found, else returns the two points.
             if cname is not None:
                 cdef.append('\\definecolor{%s}%s' % (cname,self.hex2rgb(colour)))
                 result = cname
-        if self._debug:
-            print (result,file=sys.stderr)
+        self.log(result,_verbose=2)
         return result
 
-
     def style2colour(self,style):
-        if self._debug: print ("style2colour(%s)" % style,file=sys.stderr)
+        self.log("style2colour(%s)" % style,end=" = ",_verbose=2)
         stdef = []
         cdef  = []
         s2cDict = {
@@ -176,7 +174,7 @@ Throws exception when no solutions are found, else returns the two points.
                 stdef.append(s2cDict[m](c))
 
         result = "[%s]" % ",".join(stdef) if len(stdef) > 0 else "", "\n".join(cdef)
-        if self._debug: print("Returns %s" % repr(result), file=sys.stderr)
+        self.log("Returns %s" % repr(result), _verbose=2)
         return result
     
     def process_rect(self,elem):
@@ -205,7 +203,7 @@ Throws exception when no solutions are found, else returns the two points.
             style = ""
             cdefs = ""
         print (cdefs,file=self._output)
-        print ("\\draw %s %s circle %s ;" % (style,self.pt2str(x,y),self.u2str(r)),
+        print ("\\draw %s %s circle (%s) ;" % (style,self.pt2str(x,y),self.str2u(r)),
                file=self._output)
 
     def process_ellipse(self,elem):
@@ -507,11 +505,11 @@ Throws exception when no solutions are found, else returns the two points.
             }
 
             result = [xlatestyle[x](styledict[x]) for x in xlatestyle if x in styledict]
-            if self._debug: print (repr(result),end=" --> ",file=sys.stderr)
+            self.log(repr(result),end=" --> ",_verbose=2)
             fspec = "font=" + "".join([f[5:] for f in result if f.startswith("font=")])
             result = [ r for r in result if len(r)>0 and not r.startswith("font=")]
-            if len(fspec) > 5: result.append(fspec)
-            if self._debug: print (repr(result),file=sys.stderr)
+            if len(fspec) != 5: result.append(fspec)
+            self.log(repr(result),_verbose=2)
             # result = [r for r in result if r is not None and len(r)>0]
             return "" if len(result) == 0 else "[" + ",".join(result) + "]","\n".join(cdefs)
         
@@ -580,7 +578,9 @@ Throws exception when no solutions are found, else returns the two points.
         except:
             return False
 
-            
+
+    namedTagRe = re.compile(r"({([^}]+)})(.*)")
+
     def process_g(self,elem):
         if len(elem) == 0: return
         g_style = elem.get("style")
@@ -599,10 +599,10 @@ Throws exception when no solutions are found, else returns the two points.
         }
 
         # print ("process_g(%s)" % elem.tag,file=sys.stderr)
-        # print (" %d children" % len([c for c in elem]))
+
         for child in elem:
-            print (" &&& -> %s" % child.tag,file=sys.stderr)
-            tag = self.delNS(child.tag)
+            # print (" &&& -> %s" % child.tag,file=sys.stderr)
+            tag = self.namedTagRe.match(child.tag).group(3)
             for x in xlate:
                 if tag == x:
                     transform = self.transform2scope(child)
@@ -646,6 +646,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter,epilog="")
+    parser.add_argument('--version', action='version', version='%(prog)s 2.0')
     parser.add_argument("-d","--debug",
                         dest="debug",      
                         action = "store_true", 
@@ -662,6 +663,10 @@ def main():
                         dest="border",
                         default="1mm",  
                         help="Set standalone border (default:1mm)")
+    parser.add_argument("-r","--dpi",
+                        dest="dpi",
+                        type=int,default=72,
+                        help="Resolution (assume 72dpi)")
     parser.add_argument("-s","--standalone",
                         dest="standalone", 
                         action = "store_true",
@@ -680,7 +685,8 @@ def main():
         print (" %s --> %s " % (args.infile,args.output),file=sys.stderr)
 
     processor = TiKZMaker(sys.stdout if args.output is None else codecs.open(args.output,"w",args.code),
-                          debug=args.debug)
+                          debug=args.debug,
+                          dpi=args.dpi)
     try:
         tree = etree.parse(args.infile)
 
