@@ -23,9 +23,9 @@ class TiKZMaker(object):
     _verbose    = 1
     _dpi        = 72
     
-    stroke    = re.compile(r"stroke:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
-    stwidth   = re.compile(r"stroke-width:(\d+\.\d+(px|mm)?);?")
-    fill      = re.compile(r"fill:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
+    # stroke    = re.compile(r"stroke:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
+    # stwidth   = re.compile(r"stroke-width:(\d+\.\d+(px|mm)?);?")
+    # fill      = re.compile(r"fill:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
     str2uRe   = re.compile(r"(-?\d*.?\d*e?[+-]?\d*)([a-z]{2})?")
     
     def __init__(self, output=sys.stdout, standalone = False,debug=False,unit="mm",dpi=72):
@@ -33,11 +33,17 @@ class TiKZMaker(object):
         self._unit       = unit
         self._standalone = standalone
         self._debug      = debug
+        self._dpi        = dpi
         if self._debug: print ("Debugging!",file=sys.stderr)
 
     def log(self,msg,_verbose=1,end=None):
         if self._debug and _verbose <= self._verbose:
             print (msg,end=end,file=sys.stderr)
+
+    @staticmethod
+    def output(colordef,strmsg,file=sys.stdout):
+        if len(colordef)>0: print (colordef,file=file)
+        print (strmsg,file=file)
 
     @classmethod
     def str2u(cls,s):
@@ -188,10 +194,9 @@ Throws exception when no solutions are found, else returns the two points.
         except:
             style = ""
             cdefs = ""
-        if len(cdefs) > 0:
-            print (cdefs,file=self._output)
-        print ("\\draw %s %s rectangle %s ;" % (style,self.pt2str(x,y),self.pt2str(w+x,h+y)),
-               file=self._output)
+        TiKZMaker.output(cdefs,
+                         "\\draw %s %s rectangle %s ;" % (style,self.pt2str(x,y),self.pt2str(w+x,h+y)),
+                         file=self._output)
 
     def process_circle(self,elem):
         x    = float(elem.get('cx'))
@@ -202,9 +207,9 @@ Throws exception when no solutions are found, else returns the two points.
         except:
             style = ""
             cdefs = ""
-        print (cdefs,file=self._output)
-        print ("\\draw %s %s circle (%s) ;" % (style,self.pt2str(x,y),self.str2u(r)),
-               file=self._output)
+        TiKZMaker.output(cdefs,
+                         "\\draw %s %s circle (%s) ;" % (style,self.pt2str(x,y),self.str2u(r)),
+                         file=self._output)
 
     def process_ellipse(self,elem):
         x    = float(elem.get('cx'))
@@ -217,9 +222,9 @@ Throws exception when no solutions are found, else returns the two points.
         except:
             style = ""
             cdefs = ""
-        print (cdefs,file=self._output)
-        print ("\\draw %s %s ellipse %s ;" % (style,self.pt2str(x,y),self.pt2str(rx,ry,' and ')),
-               file=self._output)
+        TiKZMaker.output(cdefs,
+                         "\\draw %s %s ellipse %s ;" % (style,self.pt2str(x,y),self.pt2str(rx,ry,' and ')),
+                         file=self._output)
 
     dimRe  = re.compile(r"(-?\d+(\.\d+)?)[, ](-?\d+(\.\d+)?)(\s+(\S.*))?")
     def dimChop(self,s):
@@ -278,7 +283,7 @@ Throws exception when no solutions are found, else returns the two points.
         m = TiKZMaker.pathRe.match(d)
         # print (m,file=sys.stderr)
         if m is None:
-            print ("'%s' does not have aAcCqQlLmM element" % d,file=sys.stderr)
+            print ("ERROR: '%s' does not have aAcCqQlLmM element" % d,file=sys.stderr)
             return None, False, last_spec, incremental
         spec = m.group(2)
         x1 = float(m.group(3))
@@ -435,10 +440,11 @@ Throws exception when no solutions are found, else returns the two points.
                 y1 = cy + ry * math.sin(start)
 
                 for f in [self._output,sys.stderr] if self._debug else [self._output]:
-                    if len(cdefs) > 0: print (cdefs,file=f)
-                    print ("\\draw %s %s arc (%.2f:%.2f:%s and %s);" % 
-                           (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
-                            self.str2u(rx),self.str2u(ry)),file=f)
+                    TiKZMaker.output(cdefs,
+                                     "\\draw %s %s arc (%.2f:%.2f:%s and %s);" % 
+                                     (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
+                                      self.str2u(rx),self.str2u(ry)),
+                                     file=f)
                 return
         except Exception,e: 
             print ("<*> Exception %s" % e,file=sys.stderr)
@@ -456,18 +462,19 @@ Throws exception when no solutions are found, else returns the two points.
             for s in __s:
                 k,v = s.split(':')
                 styledict[k] = v
-            
             return styledict
         
         def dict2style(styledict={},cdefs=[]):
             def mkFont(fname):
-                fnames = {
-                    # "serif" :      "",
-                    # "Serif" :      "",
-                    "sans-serif" : "\\sffamily",
-                    "Sans" :       "\\sffamily",
-                }
-                return "font="+fnames[fname] if fname in fnames else ""
+                try:
+                    return "font=" + {
+                        # "serif" :      "",
+                        # "Serif" :      "",
+                        "sans-serif" : "\\sffamily",
+                        "Sans" :       "\\sffamily",
+                    }[fname]
+                except:
+                    return "font="
                 
             def mkAlign(style):
                 try:
@@ -526,9 +533,10 @@ Throws exception when no solutions are found, else returns the two points.
         # f = self.get_font(style)
         # if f is not None: styles.append(f)
         s,c = dict2style(stdict)
-        if len(c)>0: print ("\n".join(c),file=self._output)
-        print ("\\node %s at %s { %s };" % (s,self.pt2str(x,y),txt),
-               file=self._output)
+        # if len(c)>0: print ("\n".join(c),file=self._output)
+        # print ("\\node %s at %s { %s };" % (s,self.pt2str(x,y),txt),
+        #        file=self._output)
+        TiKZMaker.output("\n".join(c),"\\node %s at %s { %s };" % (s,self.pt2str(x,y),txt),file=self._output)
         
     def process_text(self,elem):
         x,y   = self.get_loc(elem)
