@@ -23,9 +23,6 @@ class TiKZMaker(object):
     _verbose    = 1
     _dpi        = 72
     
-    # stroke    = re.compile(r"stroke:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
-    # stwidth   = re.compile(r"stroke-width:(\d+\.\d+(px|mm)?);?")
-    # fill      = re.compile(r"fill:(none|#[0-9a-f]{6}|rgb\(\d+%,\d+%,\d+%\));")
     str2uRe   = re.compile(r"(-?\d*.?\d*e?[+-]?\d*)([a-z]{2})?")
     
     def __init__(self, output=sys.stdout, standalone = False,debug=False,unit="mm",dpi=72):
@@ -456,14 +453,7 @@ Throws exception when no solutions are found, else returns the two points.
             d,f,spec,i = self.path_chop(d,f,spec,i,style)
         print (";",file=self._output)
 
-    def process_tspan(self,elem,x,y,style):
-        def style2dict(st,styledict = {}):
-            __s = [s for s in st.split(";") if len(s) > 0]
-            for s in __s:
-                k,v = s.split(':')
-                styledict[k] = v
-            return styledict
-        
+    def process_tspan(self,txt,x,y,stdict={}):
         def dict2style(styledict={},cdefs=[]):
             def mkFont(fname):
                 try:
@@ -512,79 +502,78 @@ Throws exception when no solutions are found, else returns the two points.
             }
 
             result = [xlatestyle[x](styledict[x]) for x in xlatestyle if x in styledict]
-            self.log(repr(result),end=" --> ",_verbose=2)
+            self.log(repr(result),end=" --> ") # ,_verbose=2)
             fspec = "font=" + "".join([f[5:] for f in result if f.startswith("font=")])
             result = [ r for r in result if len(r)>0 and not r.startswith("font=")]
             if len(fspec) != 5: result.append(fspec)
-            self.log(repr(result),_verbose=2)
+            self.log(repr(result)) #,_verbose=2)
             # result = [r for r in result if r is not None and len(r)>0]
             return "" if len(result) == 0 else "[" + ",".join(result) + "]","\n".join(cdefs)
         
-        txt = elem.text
-        stdict = style2dict(style)
-        try:
-            x,y = self.get_loc(elem)
-        except: pass
-        try:
-            stdict = style2dict(elem.attrib['style'],styledict=stdict)            
-        except: pass
-        
-        # styles = [self.get_align(style)]
-        # f = self.get_font(style)
-        # if f is not None: styles.append(f)
+        # txt = elem.text
         s,c = dict2style(stdict)
-        # if len(c)>0: print ("\n".join(c),file=self._output)
-        # print ("\\node %s at %s { %s };" % (s,self.pt2str(x,y),txt),
-        #        file=self._output)
         TiKZMaker.output("\n".join(c),"\\node %s at %s { %s };" % (s,self.pt2str(x,y),txt),file=self._output)
         
     def process_text(self,elem):
+        def style2dict(st,styledict = {}):
+            for s in [_s for _s in st.split(";") if len(_s) > 0]:
+                k,v = s.split(':')
+                styledict[k] = v
+            return styledict
+        
         x,y   = self.get_loc(elem)
-        txt   = elem.text
-        style = elem.attrib['style']
-        if txt is None:
+        style = style2dict(elem.xpath("string(.//@style)",namespaces=self._nsmap))
+        print ("text.x,y = %d,%d" % (x,y),file=sys.stderr)
+        if elem.text is None:
             for tspan in elem.xpath(".//svg:tspan",namespaces=self._nsmap):
-                self.process_tspan(tspan,x,y,style)
+                _style = style2dict(tspan.xpath("string(.//@style)",namespaces=self._nsmap),
+                                    dict(style))
+                try:
+                    _x,_y   = self.get_loc(tspan)
+                    print (">> tspan.x,y = %d,%d" % (_x,_y),file=sys.stderr)
+                except:
+                    _x,_y = x,y
+                self.process_tspan(tspan.text,_x,_y,_style)
+                del _style
         else:
             print (etree.tostring(elem,pretty_print=True),file=sys.stderr)
-            self.process_tspan(elem,x,y,style)
+            self.process_tspan(elem.text,x,y,style)
+        del style
 
     transformRe = re.compile(r"(translate|rotate|matrix)\(([^)]+)\)")
     floatRe     = re.compile(r"(-?\d+(\.\d+([eE]-?\d+)?)?)")
 
     def transform2scope(self,elem):
-        try:
-            transform = elem.attrib['transform']
-            if self._debug: 
-                print ("transform2scope(%s)" % transform,file=sys.stderr)
-            m = TiKZMaker.transformRe.match(transform)
-            if self._debug: 
-                print (m.groups(),file=sys.stderr)
-            getFloats = TiKZMaker.floatRe.findall(m.group(2)) 
-            if self._debug:
-                print (getFloats,file=sys.stderr)
-            nums = [ n for n,d,e in getFloats ]
-            operation = m.group(1)
-            if self._debug:
-                print (operation,nums,file=sys.stderr)
-            xform = []
+        transform = elem.xpath('string(.//@transform)')
+        if transform == '': return False
+        if self._debug: 
+            print ("transform2scope(%s)" % transform,file=sys.stderr)
+        m = TiKZMaker.transformRe.match(transform)
+        if self._debug: 
+            print (m.groups(),file=sys.stderr)
+        getFloats = TiKZMaker.floatRe.findall(m.group(2)) 
+        if self._debug:
+            print (getFloats,file=sys.stderr)
+        nums = [ n for n,d,e in getFloats ]
+        operation = m.group(1)
+        if self._debug:
+            print (operation,nums,file=sys.stderr)
+        xform = []
 
-            if operation == "translate":
-                xform.append("shift={(%s,%s)}" % (self.str2u(nums[0]),self.str2u(nums[1])))
-            elif operation == "rotate":
-                if len(nums) == 1:
-                    xform.append("rotate=%s" % nums[0])
-                else:
-                    xform.append("rotate around={%s:(%s,%s)}" % (nums[0],self.str2u(nums[1]),self.str2u(nums[2])))
-            elif operation == "matrix":
-                xform.append("cm={%s,%s,%s,%s,(%s,%s)}" % (nums[0],nums[1],nums[2],nums[3],
-                                                           self.str2u(nums[4]),self.str2u(nums[5])))
-            if len(xform) > 0:
-                print ("\\begin{scope}[%s]" % ",".join(xform),file=self._output)
-                return True
-            return False
-        except:
-            return False
+        if operation == "translate":
+            xform.append("shift={(%s,%s)}" % (self.str2u(nums[0]),self.str2u(nums[1] if len(nums)>1 else "0")))
+        elif operation == "rotate":
+            if len(nums) == 1:
+                xform.append("rotate=%s" % nums[0])
+            else:
+                xform.append("rotate around={%s:(%s,%s)}" % (nums[0],self.str2u(nums[1]),self.str2u(nums[2])))
+        elif operation == "matrix":
+            xform.append("cm={%s,%s,%s,%s,(%s,%s)}" % (nums[0],nums[1],nums[2],nums[3],
+                                                       self.str2u(nums[4]),self.str2u(nums[5])))
+        if len(xform) > 0:
+            print ("\\begin{scope}[%s]" % ",".join(xform),file=self._output)
+            return True
+        return False
 
 
     namedTagRe = re.compile(r"({([^}]+)})(.*)")
