@@ -67,10 +67,6 @@ class TiKZMaker(object):
         assert x is not None and y is not None
         return "(%s%s%s)" % (cls.str2u(x),sep,cls.str2u(y))
 
-    @classmethod
-    def sodipodi(cls,elem,attr=None):
-        return elem.xpath("string(.//@sodipodi:%s)" % attr,namespaces=cls._nsmap)
-
     namedTagRe = re.compile(r"({([^}]+)})(.*)")
     @classmethod
     def delNS(cls,tag):
@@ -398,9 +394,28 @@ Throws exception when no solutions are found, else returns the two points.
             
         if x is not None and y is not None:
             print ("\\end{scope}",file=self._output)
+
+    def sodipodi_arc(self,cdefs,style,elem):
+        rx    = float(elem.xpath("string(.//@sodipodi:rx)" ,namespaces=self._nsmap))
+        ry    = float(elem.xpath("string(.//@sodipodi:ry)" ,namespaces=self._nsmap))
+        cx    = float(elem.xpath("string(.//@sodipodi:cx)" ,namespaces=self._nsmap))
+        cy    = float(elem.xpath("string(.//@sodipodi:cy)" ,namespaces=self._nsmap))
+        start = float(elem.xpath("string(.//@sodipodi:start)" ,namespaces=self._nsmap))
+        end   = float(elem.xpath("string(.//@sodipodi:end)" ,namespaces=self._nsmap))
+
+        if end < start: end = end + 2.0 * math.pi
+                
+        x1 = cx + rx * math.cos(start)
+        y1 = cy + ry * math.sin(start)
+
+        for f in [self._output,sys.stderr] if self._debug else [self._output]:
+            TiKZMaker.output(cdefs,
+                             "\\draw %s %s arc (%.2f:%.2f:%s and %s);" % 
+                             (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
+                              self.str2u(rx),self.str2u(ry)),
+                             file=f)
         
     def process_path(self,elem):
-            
         d = elem.attrib['d']
         f = True 
         i = False
@@ -419,34 +434,21 @@ Throws exception when no solutions are found, else returns the two points.
             style = ""
             cdefs = ""
         spec = None
-        try:
-            _type = elem.xpath("string(.//@sodipodi:type)" ,namespaces=self._nsmap)
-            if self._debug:
-                print ("sodipodi type is '%s'" % _type,file=sys.stderr)
-            if _type == 'arc':
-                rx    = float(elem.xpath("string(.//@sodipodi:rx)" ,namespaces=self._nsmap))
-                ry    = float(elem.xpath("string(.//@sodipodi:ry)" ,namespaces=self._nsmap))
-                cx    = float(elem.xpath("string(.//@sodipodi:cx)" ,namespaces=self._nsmap))
-                cy    = float(elem.xpath("string(.//@sodipodi:cy)" ,namespaces=self._nsmap))
-                start = float(elem.xpath("string(.//@sodipodi:start)" ,namespaces=self._nsmap))
-                end   = float(elem.xpath("string(.//@sodipodi:end)" ,namespaces=self._nsmap))
 
-                if end < start: end = end + 2.0 * math.pi
-                
-                x1 = cx + rx * math.cos(start)
-                y1 = cy + ry * math.sin(start)
-
-                for f in [self._output,sys.stderr] if self._debug else [self._output]:
-                    TiKZMaker.output(cdefs,
-                                     "\\draw %s %s arc (%.2f:%.2f:%s and %s);" % 
-                                     (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
-                                      self.str2u(rx),self.str2u(ry)),
-                                     file=f)
+        _type = elem.xpath("string(.//@sodipodi:type)" ,namespaces=self._nsmap)
+        if self._debug:
+            print ("sodipodi type is '%s'" % _type,file=sys.stderr)
+        sodipodi_dict = {
+            "arc" : lambda e: self.sodipodi_arc(cdefs,style,e),
+            # Add more sodipodi elements here
+        }
+        if _type in sodipodi_dict:
+            try:
+                sodipodi_dict[_type](elem)
                 return
-        except Exception,e: 
-            print ("<*> Exception %s" % e,file=sys.stderr)
-            pass
-        
+            except Exception,e: 
+                print ("<*> Exception %s" % e,file=sys.stderr)
+                pass
         if len(cdefs) > 0: print (cdefs,file=self._output)
         while d is not None and len(d) > 0:
             ## print (self.path_chop(d,f,spec,i,style),file=sys.stderr)            
@@ -582,7 +584,6 @@ Throws exception when no solutions are found, else returns the two points.
         if len(elem) == 0: return
         g_style = elem.get("style")
         if g_style is not None:
-            print ("\\begin{scope}",file=self._output)
             print ("TODO: process global style '%s' in group" % g_style,file=sys.stderr)
 
         xlate = {
@@ -609,7 +610,7 @@ Throws exception when no solutions are found, else returns the two points.
             else:
                 print ("WARNING: <%s ../> not processed" % tag,file=sys.stderr)
         if g_style is not None:
-            print ("\\end{scope}",file=self._output)
+            pass # print ("\\end{scope}",file=self._output)
 
     def mkStandaloneTikz(self,svg,border="1mm"):
         print ("\\documentclass[tikz,border=%s]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{shapes}\n\\usepackage[utf8]{inputenc}\n\\makeatletter\n\\begin{document}" % border,file=self._output)
