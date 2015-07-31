@@ -118,15 +118,15 @@ Throws exception when no solutions are found, else returns the two points.
     
     def get_loc(self,elem):
         # print (elem.tag,elem.attrib)
-        x = float(elem.attrib['x'])
-        y = float(elem.attrib['y'])
-        return x,y
+        # x = float(elem.attrib['x'])
+        # y = float(elem.attrib['y'])
+        return float(elem.xpath("string(.//@x)")),float(elem.xpath("string(.//@y)"))
 
     def get_dim(self,elem):
         # print (elem.tag,elem.attrib)
-        w = float(elem.attrib['width'])
-        h = float(elem.attrib['height'])
-        return w,h
+        # w = float(elem.attrib['width'])
+        # h = float(elem.attrib['height'])
+        return float(elem.xpath("string(.//@width)")),float(elem.xpath("string(.//@height)"))
 
     def hex2rgb(self,colour):
         self.log('hex2rgb(%s)' % colour,_verbose=2)
@@ -135,9 +135,20 @@ Throws exception when no solutions are found, else returns the two points.
         b = int("0x"+colour[5:],0)
         return "{RGB}{%d,%d,%d}" % (r,g,b)
 
+    def rgb2colour(self,colour):
+        rgbSpec = re.compile("rgb\((\d+%?),(\d+%?),(\d+%?)\)")
+        m = rgbSpec.match(colour)
+        if m is None: return colour, None
+        r = int(m.group(1)[:-1]) * 255 if m.group(1).endswith('%') else int(m.group(1))
+        g = int(m.group(2)[:-1]) * 255 if m.group(2).endswith('%') else int(m.group(2))
+        b = int(m.group(3)[:-1]) * 255 if m.group(3).endswith('%') else int(m.group(3))
+        return '#%02x%02x%02x' % (rgb) , "{RGB}{%d,%d,%d}" % (r,g,b)
+
     def hex2colour(self,colour,cname=None,cdef=None):
         self.log("hex2colour(%s) = " % colour,end="",_verbose=2)
         result = None
+        col,rgb = self.rbg2colour(colour) if colour.startswith("rgb(") else colour,self.hex2rgb(colour)
+        print ("colour %s --> %s,%s" % (colour,col,rgb))
         d = {'none'    : 'none', 
              '#000000' : 'black',
              '#ff0000' : 'red',
@@ -148,13 +159,14 @@ Throws exception when no solutions are found, else returns the two points.
              '#ff00ff' : 'magenta',
              '#ffffff' : 'white' } 
         try :
-            result = d[colour]
+            result = d[col]
         except:
             if cname is not None:
-                cdef.append('\\definecolor{%s}%s' % (cname,self.hex2rgb(colour)))
+                cdef.append('\\definecolor{%s}%s' % (cname,rgb))
                 result = cname
         self.log(result,_verbose=2)
         return result
+        
 
     def style2colour(self,style):
         self.log("style2colour(%s)" % style,end=" = ",_verbose=2)
@@ -251,7 +263,7 @@ Throws exception when no solutions are found, else returns the two points.
     #  spec:        spec for next operation
     #  incremental: whether next operation will be incremental
     
-    def path_chop(self,d,first,last_spec,incremental,style):
+    def path_chop(self,d,first=True,last_spec="",incremental=True,style=None):
 
         def path_controls(inc,p1,p2,p3):
             print (".. controls %s%s and %s%s .. %s%s" % (inc,p1,inc,p2,inc,p3),
@@ -295,7 +307,7 @@ Throws exception when no solutions are found, else returns the two points.
         if spec is not None:
             spec = spec[0]
             incremental = spec != spec.upper()
-        inc = "++" if incremental else ""
+        inc = "++" if incremental and not first else ""
             
         rest = m.group(8)
         ## print (" --]]>> [%s|%s]" % (spec,rest),file=sys.stderr)
@@ -431,8 +443,7 @@ Throws exception when no solutions are found, else returns the two points.
                 print ("%% colour defs = '%s'" % cdefs,file=sys.stderr)
 
         except:
-            style = ""
-            cdefs = ""
+            style,cdefs = "",""
         spec = None
 
         _type = elem.xpath("string(.//@sodipodi:type)" ,namespaces=self._nsmap)
@@ -447,12 +458,11 @@ Throws exception when no solutions are found, else returns the two points.
                 sodipodi_dict[_type](elem)
                 return
             except Exception,e: 
-                print ("<*> Exception %s" % e,file=sys.stderr)
-                pass
+                print ("<*> Exception %s processing sodipodi:%s" % (e,_type),file=sys.stderr)
         if len(cdefs) > 0: print (cdefs,file=self._output)
         while d is not None and len(d) > 0:
-            ## print (self.path_chop(d,f,spec,i,style),file=sys.stderr)            
-            d,f,spec,i = self.path_chop(d,f,spec,i,style)
+            ## print (self.path_chop(d,f,spec,i,style),file=sys.stderr) 
+            d,f,spec,i = self.path_chop(d,first=f,last_spec=spec,incremental=i,style=style)
         print (";",file=self._output)
 
     def process_tspan(self,txt,x,y,stdict={}):
