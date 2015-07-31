@@ -24,7 +24,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.7890873"
-     inkscape:cx="197.75275"
+     inkscape:cx="336.88003"
      inkscape:cy="198.4252"
      inkscape:document-units="mm"
      inkscape:current-layer="g4511"
@@ -283,6 +283,8 @@
          id="tspan4179"
          x="60.632992"
          y="225.56244"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.93888903px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:none;font-variant-caps:normal;font-variant-numeric:normal;text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#00ff00;fill-opacity:1;stroke-width:0.26458332px">Green</tspan></text>
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.93888903px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:none;font-variant-caps:normal;font-variant-numeric:normal;text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#00ff00;fill-opacity:1;stroke-width:0.26458332px">Green <tspan
+   style="-inkscape-font-specification:'monospace, Normal';font-family:monospace;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;font-size:4.93888889px;text-anchor:middle;text-align:center;writing-mode:lr;line-height:125%;font-variant-ligatures:none;font-variant-caps:normal;font-variant-numeric:normal"
+   id="tspan4180">terminal</tspan> font</tspan></text>
   </g>
 </svg>
