@@ -20,7 +20,7 @@ class TiKZMaker(object):
     _debug      = False
     _symbols    = None
     _nsmap      = None
-    _verbose    = 1
+    _verbose    = 2
     _dpi        = 72
     
     str2uRe   = re.compile(r"(-?\d*.?\d*e?[+-]?\d*)([a-z]{2})?")
@@ -130,6 +130,7 @@ Throws exception when no solutions are found, else returns the two points.
 
     def hex2rgb(self,colour):
         self.log('hex2rgb(%s)' % colour,_verbose=2)
+        if colour.lower() == 'none': return 'none'
         r = int("0x"+colour[1:3],0)
         g = int("0x"+colour[3:5],0)
         b = int("0x"+colour[5:],0)
@@ -142,7 +143,7 @@ Throws exception when no solutions are found, else returns the two points.
         r = int(m.group(1)[:-1]) * 255 if m.group(1).endswith('%') else int(m.group(1))
         g = int(m.group(2)[:-1]) * 255 if m.group(2).endswith('%') else int(m.group(2))
         b = int(m.group(3)[:-1]) * 255 if m.group(3).endswith('%') else int(m.group(3))
-        return '#%02x%02x%02x' % (rgb) , "{RGB}{%d,%d,%d}" % (r,g,b)
+        return '#%02x%02x%02x' % (r,g,b) , "{RGB}{%d,%d,%d}" % (r,g,b)
 
     def hex2colour(self,colour,cname=None,cdef=None):
         self.log("hex2colour(%s) = " % colour,end="",_verbose=2)
@@ -179,9 +180,11 @@ Throws exception when no solutions are found, else returns the two points.
         }
         for s in style.split(';'):
             m,c = s.split(':')
-            # if self._debug: print ("Processing '%s=%s'" % (m,c),file=sys.stderr) 
+            # if self._debug: 
+            print ("Processing '%s=%s'" % (m,c),file=sys.stderr) 
             if m in s2cDict:
-                # if self._debug: print ("Found '%s'" % m,file=sys.stderr)
+                # if self._debug: 
+                print ("Found '%s'" % m,file=sys.stderr)
                 stdef.append(s2cDict[m](c))
 
         result = "[%s]" % ",".join(stdef) if len(stdef) > 0 else "", "\n".join(cdef)
@@ -248,7 +251,7 @@ Throws exception when no solutions are found, else returns the two points.
         m = TiKZMaker.numRe.match(s)
         return m.group(1),m.group(4),float(m.group(1))
         
-    pathRe = re.compile(r"(([aAcCqQlLmM] )?(-?\d+(\.\d+)?)[ ,](-?\d+(\.\d+)?))(\s+(\S.*))?")
+    pathRe = re.compile(r"([aAcCqQlLmM] )?(-?\d+(\.\d+)?(e-?\d+)?)[, ](-?\d+(\.\d+)?(e-?\d+)?)([ ,]+(.*))?")
 
     # path_chop
     # @param:
@@ -290,8 +293,8 @@ Throws exception when no solutions are found, else returns the two points.
         if m is None:
             print ("ERROR: '%s' does not have aAcCqQlLmM element" % d,file=sys.stderr)
             return None, False, last_spec, incremental
-        spec = m.group(2)
-        x1 = float(m.group(3))
+        spec = m.group(1)
+        x1 = float(m.group(2))
         y1 = float(m.group(5))
         pt = self.pt2str(x1,y1)
         if self._debug:
@@ -309,7 +312,7 @@ Throws exception when no solutions are found, else returns the two points.
             incremental = spec != spec.upper()
         inc = "++" if incremental and not first else ""
             
-        rest = m.group(8)
+        rest = m.group(9)
         ## print (" --]]>> [%s|%s]" % (spec,rest),file=sys.stderr)
 
         if spec in ["L","l"] or spec is None:
@@ -437,18 +440,24 @@ Throws exception when no solutions are found, else returns the two points.
         except: pass
         print ("%% path spec='%s'" % d,file=self._output)
         try:
-            style,cdefs = self.style2colour(elem.attrib['style'])
+            _style = elem.attrib['style']
+            if self._debug:
+                print ("%% From '%s'" % _style,file=sys.stderr)
+            style,cdefs = self.style2colour(_style)
             if self._debug:
                 print ("%% style= '%s'" % style,file=sys.stderr)
                 print ("%% colour defs = '%s'" % cdefs,file=sys.stderr)
-
-        except:
+        except Exception as e:
             style,cdefs = "",""
+            
+            
         spec = None
 
         _type = elem.xpath("string(.//@sodipodi:type)" ,namespaces=self._nsmap)
         if self._debug:
             print ("sodipodi type is '%s'" % _type,file=sys.stderr)
+            print ("style is '%s'" % style,file=sys.stderr)
+            
         sodipodi_dict = {
             "arc" : lambda e: self.sodipodi_arc(cdefs,style,e),
             # Add more sodipodi elements here
