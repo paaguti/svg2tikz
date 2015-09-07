@@ -20,7 +20,7 @@ class TiKZMaker(object):
     _debug      = False
     _symbols    = None
     _nsmap      = None
-    _verbose    = 2
+    _verbose    = 1
     _dpi        = 72
     
     str2uRe   = re.compile(r"(-?\d*.?\d*e?[+-]?\d*)([a-z]{2})?")
@@ -149,7 +149,7 @@ Throws exception when no solutions are found, else returns the two points.
         self.log("hex2colour(%s) = " % colour,end="",_verbose=2)
         result = None
         col,rgb = self.rbg2colour(colour) if colour.startswith("rgb(") else colour,self.hex2rgb(colour)
-        print ("colour %s --> %s,%s" % (colour,col,rgb))
+        self.log ("colour %s --> %s,%s" % (colour,col,rgb),_verbose=2)
         d = {'none'    : 'none', 
              '#000000' : 'black',
              '#ff0000' : 'red',
@@ -181,10 +181,10 @@ Throws exception when no solutions are found, else returns the two points.
         for s in style.split(';'):
             m,c = s.split(':')
             # if self._debug: 
-            print ("Processing '%s=%s'" % (m,c),file=sys.stderr) 
+            self.log ("Processing '%s=%s'" % (m,c),_verbose=2) 
             if m in s2cDict:
                 # if self._debug: 
-                print ("Found '%s'" % m,file=sys.stderr)
+                self.log("Found '%s'" % m,_verbose=2)
                 stdef.append(s2cDict[m](c))
 
         result = "[%s]" % ",".join(stdef) if len(stdef) > 0 else "", "\n".join(cdef)
