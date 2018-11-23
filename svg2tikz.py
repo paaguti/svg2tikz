@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ A program to generate TiKZ code from inkscape-generated SVGs
 Future plans include generalising to SVG without depending on Inkscape
 """
@@ -6,12 +6,13 @@ Future plans include generalising to SVG without depending on Inkscape
 # released under LGPL 3.0
 # see LICENSE
 
-from __future__ import print_function
+
 from lxml import etree
 import sys
 import re
 import codecs
 import math
+import argparse
 
 class TiKZMaker(object):
     _output     = None
@@ -22,9 +23,9 @@ class TiKZMaker(object):
     _nsmap      = None
     _verbose    = 1
     _dpi        = 72
-    
+
     str2uRe   = re.compile(r"(-?\d*.?\d*e?[+-]?\d*)([a-z]{2})?")
-    
+
     def __init__(self, output=sys.stdout, standalone = False,debug=False,unit="mm",dpi=72):
         self._output     = output
         self._unit       = unit
@@ -107,7 +108,7 @@ Throws exception when no solutions are found, else returns the two points.
             res.append((pt[0],pt[1],alpha,beta,r))
             # print (res,file=sys.stderr)
         return res
-    
+
     def svg_ellipse_arc(self,x1,y1,rx,ry):
         mu = ry/rx
         res = []
@@ -115,7 +116,7 @@ Throws exception when no solutions are found, else returns the two points.
             res.append((arc[0]/mu,arc[1],arc[2],arc[3],rx,ry))
             # print (res,file=sys.stderr)
         return res
-    
+
     def get_loc(self,elem):
         # print (elem.tag,elem.attrib)
         # x = float(elem.attrib['x'])
@@ -150,7 +151,7 @@ Throws exception when no solutions are found, else returns the two points.
         result = None
         col,rgb = self.rbg2colour(colour) if colour.startswith("rgb(") else colour,self.hex2rgb(colour)
         self.log ("colour %s --> %s,%s" % (colour,col,rgb),_verbose=2)
-        d = {'none'    : 'none', 
+        d = {'none'    : 'none',
              '#000000' : 'black',
              '#ff0000' : 'red',
              '#00ff00' : 'green',
@@ -158,7 +159,7 @@ Throws exception when no solutions are found, else returns the two points.
              '#ffff00' : 'yellow',
              '#00ffff' : 'cyan',
              '#ff00ff' : 'magenta',
-             '#ffffff' : 'white' } 
+             '#ffffff' : 'white' }
         try :
             result = d[col]
         except:
@@ -167,7 +168,7 @@ Throws exception when no solutions are found, else returns the two points.
                 result = cname
         self.log(result,_verbose=2)
         return result
-        
+
 
     def style2colour(self,style):
         self.log("style2colour(%s)" % style,end=" = ",_verbose=2)
@@ -180,17 +181,17 @@ Throws exception when no solutions are found, else returns the two points.
         }
         for s in style.split(';'):
             m,c = s.split(':')
-            # if self._debug: 
-            self.log ("Processing '%s=%s'" % (m,c),_verbose=2) 
+            # if self._debug:
+            self.log ("Processing '%s=%s'" % (m,c),_verbose=2)
             if m in s2cDict:
-                # if self._debug: 
+                # if self._debug:
                 self.log("Found '%s'" % m,_verbose=2)
                 stdef.append(s2cDict[m](c))
 
         result = "[%s]" % ",".join(stdef) if len(stdef) > 0 else "", "\n".join(cdef)
         self.log("Returns %s" % repr(result), _verbose=2)
         return result
-    
+
     def process_rect(self,elem):
         if self._debug:
             print ("***\n** rectangle\n***",file=sys.stderr)
@@ -245,12 +246,12 @@ Throws exception when no solutions are found, else returns the two points.
     def intChop(self,s):
         m = TiKZMaker.intRe.match(s)
         return m.group(1),m.group(3),int(m.group(1))
-    
+
     numRe = re.compile (r"(-?\d+(\.\d+)?)(\s+(\S.*))?")
     def numChop(self,s):
         m = TiKZMaker.numRe.match(s)
         return m.group(1),m.group(4),float(m.group(1))
-        
+
     pathRe = re.compile(r"([aAcCqQlLmM] )?(-?\d+(\.\d+)?(e-?\d+)?)[, ](-?\d+(\.\d+)?(e-?\d+)?)([ ,]+(.*))?")
 
     # path_chop
@@ -265,7 +266,7 @@ Throws exception when no solutions are found, else returns the two points.
     #  first:       should be False
     #  spec:        spec for next operation
     #  incremental: whether next operation will be incremental
-    
+
     def path_chop(self,d,first=True,last_spec="",incremental=True,style=None):
 
         def path_controls(inc,p1,p2,p3):
@@ -276,7 +277,7 @@ Throws exception when no solutions are found, else returns the two points.
             x,y,alpha,beta,rx,ry = arc
             print ("%s%s%s arc (%5.1f:%5.1f:%s and %s)" %
                    ("%% " if comment else "",
-                    inc, 
+                    inc,
                     self.pt2str(x,y),
                     alpha if lge else beta,
                     beta  if lge else alpha,
@@ -287,7 +288,7 @@ Throws exception when no solutions are found, else returns the two points.
             print ("[%s] -->> %s" % (last_spec,d),file=sys.stderr)
         if d[0].upper() == 'Z':
             print ("-- cycle",file=self._output)
-            return None, False, last_spec, incremental            
+            return None, False, last_spec, incremental
         m = TiKZMaker.pathRe.match(d)
         # print (m,file=sys.stderr)
         if m is None:
@@ -299,7 +300,7 @@ Throws exception when no solutions are found, else returns the two points.
         pt = self.pt2str(x1,y1)
         if self._debug:
             print (" -- [%s] >> %s" % (spec,m.group(1)),file=sys.stderr)
-        
+
         # spec=last_spec[0] if spec is None else spec[0]
         if spec is None and last_spec is not None:
             if last_spec[0].upper() == 'M':
@@ -311,7 +312,7 @@ Throws exception when no solutions are found, else returns the two points.
             spec = spec[0]
             incremental = spec != spec.upper()
         inc = "++" if incremental and not first else ""
-            
+
         rest = m.group(9)
         ## print (" --]]>> [%s|%s]" % (spec,rest),file=sys.stderr)
 
@@ -349,7 +350,7 @@ Throws exception when no solutions are found, else returns the two points.
                 #
                 # Q3 = P2
                 # Q2 = (2*P1+P2)/3 [ -P2 ^see above^]
-                # Q1 = 
+                # Q1 =
                 pt3 = pt2
                 pt2 = self.pt2str(2.0*(x1-x2)/3.0,2.0*(y1-y2)/3)
                 pt1 = self.pt2str(2.0*x1/3.0,      2.0*y1/3)
@@ -369,8 +370,8 @@ Throws exception when no solutions are found, else returns the two points.
                 if self._debug: print("arcs: ",arcs,file=sys.stderr)
                 path_arc(inc,arcs[0 if _swap else 1],_large,False)
                 path_arc(inc,arcs[1 if _swap else 0],_large,True)
-                
-            except Exception,e:
+
+            except Exception as e:
                 print ("ERROR: <%s> Couldn't process spec: %c %6.1f,%6.1f %d %d %d %6.1f,%6.1f" %
                        (e, spec, x1, y1, _xrot, _large, _swap, _x, _y), file=sys.stderr)
                 print ("%%%% ERROR: Couldn't process spec: %c %6.1f,%6.1f %d %d %d %d %6.1f,%6.1f" %
@@ -387,7 +388,7 @@ Throws exception when no solutions are found, else returns the two points.
         print("]>]>  "+elem.xpath("string(.//@href)",namespaces = self._nsmap),file=sys.stderr)
         for n in elem.attrib:
             print (n)
-            
+
             if re.search(r"({[^}]+})?href",n):
                 if debug: print ("reference to %s" % elem.get(n))
                 href = elem.get(n)
@@ -395,18 +396,18 @@ Throws exception when no solutions are found, else returns the two points.
             if n == 'y': y=float(elem.get(n))
         assert href is not None, "use does not reference a symbol" % href
         assert href[0] == "#", "Only local hrefs allowed for symbols (%s)" % href
-        
+
         try:
             print ("\\begin{scope}[shift={%s}]" % (self.pt2str(x,y)),file=self._output)
         except: pass
-        
+
         for s in self._symbols:
             if href[1:] == s.get("id"):
                 self.process_g(s)
                 break
         else:
             print ("ERROR: didn't find referenced symbol '%s'" % href[1:],file=sys.stderr)
-            
+
         if x is not None and y is not None:
             print ("\\end{scope}",file=self._output)
 
@@ -419,20 +420,20 @@ Throws exception when no solutions are found, else returns the two points.
         end   = float(elem.xpath("string(.//@sodipodi:end)" ,namespaces=self._nsmap))
 
         if end < start: end = end + 2.0 * math.pi
-                
+
         x1 = cx + rx * math.cos(start)
         y1 = cy + ry * math.sin(start)
 
         for f in [self._output,sys.stderr] if self._debug else [self._output]:
             TiKZMaker.output(cdefs,
-                             "\\draw %s %s arc (%.2f:%.2f:%s and %s);" % 
+                             "\\draw %s %s arc (%.2f:%.2f:%s and %s);" %
                              (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
                               self.str2u(rx),self.str2u(ry)),
                              file=f)
-        
+
     def process_path(self,elem):
         d = elem.attrib['d']
-        f = True 
+        f = True
         i = False
         try:
             pid = elem.attrib['id']
@@ -449,15 +450,15 @@ Throws exception when no solutions are found, else returns the two points.
                 print ("%% colour defs = '%s'" % cdefs,file=sys.stderr)
         except Exception as e:
             style,cdefs = "",""
-            
-            
+
+
         spec = None
 
         _type = elem.xpath("string(.//@sodipodi:type)" ,namespaces=self._nsmap)
         if self._debug:
             print ("sodipodi type is '%s'" % _type,file=sys.stderr)
             print ("style is '%s'" % style,file=sys.stderr)
-            
+
         sodipodi_dict = {
             "arc" : lambda e: self.sodipodi_arc(cdefs,style,e),
             # Add more sodipodi elements here
@@ -466,11 +467,11 @@ Throws exception when no solutions are found, else returns the two points.
             try:
                 sodipodi_dict[_type](elem)
                 return
-            except Exception,e: 
+            except Exception as e:
                 print ("<*> Exception %s processing sodipodi:%s" % (e,_type),file=sys.stderr)
         if len(cdefs) > 0: print (cdefs,file=self._output)
         while d is not None and len(d) > 0:
-            ## print (self.path_chop(d,f,spec,i,style),file=sys.stderr) 
+            ## print (self.path_chop(d,f,spec,i,style),file=sys.stderr)
             d,f,spec,i = self.path_chop(d,first=f,last_spec=spec,incremental=i,style=style)
         print (";",file=self._output)
 
@@ -486,7 +487,7 @@ Throws exception when no solutions are found, else returns the two points.
                     }[fname]
                 except:
                     return "font="
-                
+
             def mkAlign(style):
                 try:
                     al = {'start':'left','center':'center','end':'right' }[style]
@@ -530,18 +531,18 @@ Throws exception when no solutions are found, else returns the two points.
             self.log(repr(result)) #,_verbose=2)
             # result = [r for r in result if r is not None and len(r)>0]
             return "" if len(result) == 0 else "[" + ",".join(result) + "]","\n".join(cdefs)
-        
+
         # txt = elem.text
         s,c = dict2style(stdict)
         TiKZMaker.output("\n".join(c),"\\node %s at %s { %s };" % (s,self.pt2str(x,y),txt),file=self._output)
-        
+
     def process_text(self,elem):
         def style2dict(st,styledict = {}):
             for s in [_s for _s in st.split(";") if len(_s) > 0]:
                 k,v = s.split(':')
                 styledict[k] = v
             return styledict
-        
+
         x,y   = self.get_loc(elem)
         style = style2dict(elem.xpath("string(.//@style)",namespaces=self._nsmap))
         print ("text.x,y = %d,%d" % (x,y),file=sys.stderr)
@@ -567,12 +568,12 @@ Throws exception when no solutions are found, else returns the two points.
     def transform2scope(self,elem):
         transform = elem.xpath('string(.//@transform)')
         if transform == '': return False
-        if self._debug: 
+        if self._debug:
             print ("transform2scope(%s)" % transform,file=sys.stderr)
         m = TiKZMaker.transformRe.match(transform)
-        if self._debug: 
+        if self._debug:
             print (m.groups(),file=sys.stderr)
-        getFloats = TiKZMaker.floatRe.findall(m.group(2)) 
+        getFloats = TiKZMaker.floatRe.findall(m.group(2))
         if self._debug:
             print (getFloats,file=sys.stderr)
         nums = [ n for n,d,e in getFloats ]
@@ -637,7 +638,7 @@ Throws exception when no solutions are found, else returns the two points.
         print ("\\end{document}",file=self._output)
 
     def mkTikz(self,svg):
-        self._nsmap = { k:v for k,v in svg.getroot().nsmap.iteritems() if k is not None }
+        self._nsmap = { k:v for k,v in iter(svg.getroot().nsmap.items()) if k is not None }
         self._nsmap['svg'] = 'http://www.w3.org/2000/svg'
         if self._debug: print (repr(self._nsmap),file=sys.stderr)
 
@@ -661,39 +662,40 @@ Throws exception when no solutions are found, else returns the two points.
 
 def main():
     import argparse
-    
+
     parser = argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter,epilog="")
     parser.add_argument('--version', action='version', version='%(prog)s 2.0')
     parser.add_argument("-d","--debug",
-                        dest="debug",      
-                        action = "store_true", 
+                        dest="debug",
+                        action = "store_true",
                         help="Enable debugging messages")
+
     parser.add_argument("-a","--auto",
-                        dest="auto",      
-                        action = "store_true", 
+                        dest="auto",
+                        action = "store_true",
                         help="Create output name from source")
     parser.add_argument("-o","--output",
                         dest="output",
-                        default=None,  
+                        default=None,
                         help="Write to file(default is stdout)")
     parser.add_argument("-b","--border",
                         dest="border",
-                        default="1mm",  
+                        default="1mm",
                         help="Set standalone border (default:1mm)")
     parser.add_argument("-r","--dpi",
                         dest="dpi",
                         type=int,default=72,
                         help="Resolution (assume 72dpi)")
     parser.add_argument("-s","--standalone",
-                        dest="standalone", 
+                        dest="standalone",
                         action = "store_true",
                         help="Make a standalone LaTEX file")
     parser.add_argument("--code",
-                        dest="code", 
+                        dest="code",
                         default="utf-8",
                         help="Output file coding")
     parser.add_argument("infile",metavar="INFILE", type=str, help="Input file")
-    
+
     args = parser.parse_args()
 
     if args.auto:
