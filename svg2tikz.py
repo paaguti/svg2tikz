@@ -609,9 +609,14 @@ Throws exception when no solutions are found, else returns the two points.
 
     def process_g(self,elem):
         if len(elem) == 0: return
+
+        g_id = elem.get("id")
+        self.log("process_g: id={}".format(g_id),_verbose=2)
+        print ("%% Group {}".format(g_id),file=self._output)
+
         g_style = elem.get("style")
         if g_style is not None:
-            print ("TODO: process global style '%s' in group" % g_style,file=sys.stderr)
+            self.log("TODO: process global style '{}' in group".format(g_style))
 
         xlate = {
             'g':       lambda e: self.process_g(e),
