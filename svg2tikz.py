@@ -252,7 +252,7 @@ Throws exception when no solutions are found, else returns the two points.
         m = TiKZMaker.numRe.match(s)
         return m.group(1),m.group(4),float(m.group(1))
 
-    pathRe = re.compile(r"([aAcCqQlLmM] )?(-?\d+(\.\d+)?(e-?\d+)?)[, ](-?\d+(\.\d+)?(e-?\d+)?)([ ,]+(.*))?")
+    pathRe = re.compile(r"([aAcCqQlLmMhHvV] )?(-?\d+(\.\d+)?(e-?\d+)?)([, ](-?\d+(\.\d+)?(e-?\d+)?))?([ ,]+(.*))?")
 
     # path_chop
     # @param:
@@ -294,10 +294,8 @@ Throws exception when no solutions are found, else returns the two points.
         if m is None:
             print ("ERROR: '%s' does not have aAcCqQlLmM element" % d,file=sys.stderr)
             return None, False, last_spec, incremental
+        rest = m.group(10)
         spec = m.group(1)
-        x1 = float(m.group(2))
-        y1 = float(m.group(5))
-        pt = self.pt2str(x1,y1)
         if self._debug:
             print (" -- [%s] >> %s" % (spec,m.group(1)),file=sys.stderr)
 
@@ -313,10 +311,19 @@ Throws exception when no solutions are found, else returns the two points.
             incremental = spec != spec.upper()
         inc = "++" if incremental and not first else ""
 
-        rest = m.group(9)
         ## print (" --]]>> [%s|%s]" % (spec,rest),file=sys.stderr)
 
-        if spec in ["L","l"] or spec is None:
+        x1,y1='0.0','0.0'
+        if spec in ['h','H']:
+            x1 = m.group(2)
+        elif spec in [ 'v','V']:
+            y1 = m.group(2)
+        else:
+            x1 = float(m.group(2))
+            y1 = float(m.group(6))
+        pt = self.pt2str(x1,y1)
+
+        if spec in ['h','H','l','L','v','V'] or spec is None:
             print ("-- %s%s" % (inc,pt),file=self._output)
         elif spec in [ "M","m"]:
             if not first: print(";",file=self._output)
