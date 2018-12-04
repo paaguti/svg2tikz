@@ -666,7 +666,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter,epilog="")
-    parser.add_argument('--version', action='version', version='%(prog)s 2.0')
+    parser.add_argument('--version', action='version', version='%(prog)s 3.0')
     parser.add_argument("-d","--debug",
                         dest="debug",
                         action = "store_true",
