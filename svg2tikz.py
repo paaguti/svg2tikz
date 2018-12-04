@@ -32,25 +32,26 @@ class TiKZMaker(object):
         self._standalone = standalone
         self._debug      = debug
         self._dpi        = dpi
-        if self._debug: print ("Debugging!",file=sys.stderr)
+        if self._debug:  self._verbose=2
 
-    def log(self,msg,_verbose=1,end=None):
-        if self._debug and _verbose <= self._verbose:
+        self.log("Debugging!",verbose=2)
+
+    def log(self, msg, verbose=1, end=None):
+        if verbose <= self._verbose:
             print (msg,end=end,file=sys.stderr)
 
     @staticmethod
     def output(colordef,strmsg,file=sys.stdout):
-        if len(colordef)>0: print (colordef,file=file)
+        if len(colordef) > 0:
+            print (colordef,file=file)
         print (strmsg,file=file)
 
-    @classmethod
-    def str2u(cls,s):
+    def str2u(self,s):
         #f = float(s) if not isinstance(s,float) else s
-        if cls._debug:
-            print ("str2u(%s)" % repr(s),file=sys.stderr)
+        self.log ("str2u({})".format(repr(s)),verbose=2)
         if isinstance(s,float):
             f = s
-            u = cls._unit
+            u = self._unit
         else:
             e = TiKZMaker.str2uRe.findall(s)[0]
             n,u = e
@@ -60,13 +61,12 @@ class TiKZMaker(object):
                 u = "mm"
             else:
                 if u == "":
-                    u = cls._unit
+                    u = self._unit
         return "%.2f%s" % (f,u)
 
-    @classmethod
-    def pt2str(cls,x=None,y=None,sep=','):
+    def pt2str(self,x=None,y=None,sep=','):
         assert x is not None and y is not None
-        return "(%s%s%s)" % (cls.str2u(x),sep,cls.str2u(y))
+        return "(%s%s%s)" % (self.str2u(x),sep,self.str2u(y))
 
     namedTagRe = re.compile(r"({([^}]+)})(.*)")
     @classmethod
@@ -75,7 +75,7 @@ class TiKZMaker(object):
         #     print ("Full tag : '%s'" % tag,file=sys.stderr)
         m = cls.namedTagRe.match(tag)
         if cls._debug:
-            print (m.groups(),file=sys.stderr)
+            self.log (m.groups())
         return m.group(3)
 
     def circle_center(self,x1,y1,r):
@@ -130,7 +130,7 @@ Throws exception when no solutions are found, else returns the two points.
         return float(elem.xpath("string(.//@width)")),float(elem.xpath("string(.//@height)"))
 
     def hex2rgb(self,colour):
-        self.log('hex2rgb(%s)' % colour,_verbose=2)
+        self.log('hex2rgb(%s)' % colour,verbose=2)
         if colour.lower() == 'none': return 'none'
         r = int("0x"+colour[1:3],0)
         g = int("0x"+colour[3:5],0)
@@ -147,10 +147,10 @@ Throws exception when no solutions are found, else returns the two points.
         return '#%02x%02x%02x' % (r,g,b) , "{RGB}{%d,%d,%d}" % (r,g,b)
 
     def hex2colour(self,colour,cname=None,cdef=None):
-        self.log("hex2colour(%s) = " % colour,end="",_verbose=2)
+        self.log("hex2colour(%s) = " % colour,end="",verbose=2)
         result = None
         col,rgb = self.rbg2colour(colour) if colour.startswith("rgb(") else colour,self.hex2rgb(colour)
-        self.log ("colour %s --> %s,%s" % (colour,col,rgb),_verbose=2)
+        self.log ("colour %s --> %s,%s" % (colour,col,rgb),verbose=2)
         d = {'none'    : 'none',
              '#000000' : 'black',
              '#ff0000' : 'red',
@@ -166,12 +166,12 @@ Throws exception when no solutions are found, else returns the two points.
             if cname is not None:
                 cdef.append('\\definecolor{%s}%s' % (cname,rgb))
                 result = cname
-        self.log(result,_verbose=2)
+        self.log(result,verbose=2)
         return result
 
 
     def style2colour(self,style):
-        self.log("style2colour(%s)" % style,end=" = ",_verbose=2)
+        self.log("style2colour(%s)" % style,end=" = ",verbose=2)
         stdef = []
         cdef  = []
         s2cDict = {
@@ -181,25 +181,22 @@ Throws exception when no solutions are found, else returns the two points.
         }
         for s in style.split(';'):
             m,c = s.split(':')
-            # if self._debug:
-            self.log ("Processing '%s=%s'" % (m,c),_verbose=2)
+            self.log ("Processing '%s=%s'" % (m,c),verbose=2)
             if m in s2cDict:
-                # if self._debug:
-                self.log("Found '%s'" % m,_verbose=2)
+                self.log("Found '%s'" % m,verbose=2)
                 stdef.append(s2cDict[m](c))
 
         result = "[%s]" % ",".join(stdef) if len(stdef) > 0 else "", "\n".join(cdef)
-        self.log("Returns %s" % repr(result), _verbose=2)
+        self.log("Returns %s" % repr(result), verbose=2)
         return result
 
     def process_rect(self,elem):
-        if self._debug:
-            print ("***\n** rectangle\n***",file=sys.stderr)
+        self.log ("***\n** rectangle\n***",verbose=2)
         x,y   = self.get_loc(elem)
         w,h   = self.get_dim(elem)
         try:
             style,cdefs = self.style2colour(elem.attrib['style'])
-            if self._debug: print("Result: style=%s\ncdefs= %s" % (style,cdefs),file=sys.stderr)
+            self.log("Result: style={}\ncdefs={}".format(style,cdefs),verbose=2)
         except:
             style = ""
             cdefs = ""
@@ -284,20 +281,18 @@ Throws exception when no solutions are found, else returns the two points.
                     self.str2u(rx),self.str2u(rx)),file=self._output)
 
 
-        if self._debug:
-            print ("[%s] -->> %s" % (last_spec,d),file=sys.stderr)
+        self.log ("[{}] -->> {}".format(last_spec,d),verbose=2)
         if d[0].upper() == 'Z':
             print ("-- cycle",file=self._output)
             return None, False, last_spec, incremental
         m = TiKZMaker.pathRe.match(d)
-        # print (m,file=sys.stderr)
+        # self.log (m)
         if m is None:
-            print ("ERROR: '%s' does not have aAcCqQlLmM element" % d,file=sys.stderr)
+            print ("ERROR: '%s' does not have aAcChHlLmMqQvV element" % d,file=sys.stderr)
             return None, False, last_spec, incremental
         rest = m.group(10)
         spec = m.group(1)
-        if self._debug:
-            print (" -- [%s] >> %s" % (spec,m.group(1)),file=sys.stderr)
+        self.log (" -- [%s] >> %s" % (spec,m.group(1)),verbose=2)
 
         # spec=last_spec[0] if spec is None else spec[0]
         if spec is None and last_spec is not None:
@@ -340,14 +335,14 @@ Throws exception when no solutions are found, else returns the two points.
             if incremental:
                 pt2 = self.pt2str(x2-x3,y2-y3)
             else:
-                if self._debug: print ("** Warning: check controls",file=sys.stderr)
+                self.log ("** Warning: check controls",verbose=2)
                 print ("%%%% Warning: check controls",file=self._output)
             path_controls (inc,pt,pt2,pt3)
         elif spec in ["Q","q"]:
-            if self._debug: print (">> Decoding quadratic Bezier curve",file=sys.stderr)
+            self.log (">> Decoding quadratic Bezier curve",verbose=2)
             pt2,rest,x2,y2 = self.dimChop(rest)
             if spec == "Q":
-                print ("%% Warning: ignoring (abs) Quadratic Bezier",file=sys.stderr)
+                self.log ("%% Warning: ignoring (abs) Quadratic Bezier")
                 print ("%% This should be a quadratic Bezier with control point at %s" % pt,file=self._output)
                 print (" -- %s" % (pt2),file=self._output)
             else:
@@ -374,17 +369,15 @@ Throws exception when no solutions are found, else returns the two points.
             _swap =   swap  == 1
             try:
                 arcs = self.svg_ellipse_arc(_x,_y,x1,y1)
-                if self._debug: print("arcs: ",arcs,file=sys.stderr)
+                self.log("arcs: ",arcs,verbose=2)
                 path_arc(inc,arcs[0 if _swap else 1],_large,False)
                 path_arc(inc,arcs[1 if _swap else 0],_large,True)
 
             except Exception as e:
-                print ("ERROR: <%s> Couldn't process spec: %c %6.1f,%6.1f %d %d %d %6.1f,%6.1f" %
-                       (e, spec, x1, y1, _xrot, _large, _swap, _x, _y), file=sys.stderr)
-                print ("%%%% ERROR: Couldn't process spec: %c %6.1f,%6.1f %d %d %d %d %6.1f,%6.1f" %
-                       (spec, x1,y1,_xrot,_large,_swap,_x,_y), file=self._output)
+                self.log("ERROR: <{}> Couldn't process spec: {} {:6.1f},{:6.1f} {} {} {} {:6.1f},{:6.1f}".format(e, spec, x1, y1, _xrot, _large, _swap, _x, _y))
+                print ("%%%% ERROR: Couldn't process spec: {} {:6.1f},{:6.1f} {} {} {} {} {:6.1f},{:6.1f}".format(spec, x1,y1,_xrot,_large,_swap,_x,_y), file=self._output)
         else:
-            print ("Warning: didn't process '%s' in path" % spec,file=sys.stderr)
+            self.log ("Warning: didn't process '{}' in path".format(spec))
         return rest,False,spec,incremental
 
     def process_use(self,elem,debug=True):
@@ -392,7 +385,7 @@ Throws exception when no solutions are found, else returns the two points.
         href = None
         x = None
         y = None
-        print("]>]>  "+elem.xpath("string(.//@href)",namespaces = self._nsmap),file=sys.stderr)
+        self.log("]>]>  "+elem.xpath("string(.//@href)",namespaces = self._nsmap))
         for n in elem.attrib:
             print (n)
 
@@ -413,7 +406,7 @@ Throws exception when no solutions are found, else returns the two points.
                 self.process_g(s)
                 break
         else:
-            print ("ERROR: didn't find referenced symbol '%s'" % href[1:],file=sys.stderr)
+            self.log ("ERROR: didn't find referenced symbol '%s'" % href[1:])
 
         if x is not None and y is not None:
             print ("\\end{scope}",file=self._output)
@@ -449,12 +442,10 @@ Throws exception when no solutions are found, else returns the two points.
         print ("%% path spec='%s'" % d,file=self._output)
         try:
             _style = elem.attrib['style']
-            if self._debug:
-                print ("%% From '%s'" % _style,file=sys.stderr)
+            self.log ("%% From '{}'".format(_style),verbose=2)
             style,cdefs = self.style2colour(_style)
-            if self._debug:
-                print ("%% style= '%s'" % style,file=sys.stderr)
-                print ("%% colour defs = '%s'" % cdefs,file=sys.stderr)
+            self.log ("%% style= '{}'".format(style),verbose=2)
+            self.log ("%% colour defs = '{}'".format(cdefs),verbose=2)
         except Exception as e:
             style,cdefs = "",""
 
@@ -462,9 +453,8 @@ Throws exception when no solutions are found, else returns the two points.
         spec = None
 
         _type = elem.xpath("string(.//@sodipodi:type)" ,namespaces=self._nsmap)
-        if self._debug:
-            print ("sodipodi type is '%s'" % _type,file=sys.stderr)
-            print ("style is '%s'" % style,file=sys.stderr)
+        self.log ("sodipodi type is '%s'" % _type,verbose=2)
+        self.log ("style is '%s'" % style,verbose=2)
 
         sodipodi_dict = {
             "arc" : lambda e: self.sodipodi_arc(cdefs,style,e),
@@ -475,14 +465,15 @@ Throws exception when no solutions are found, else returns the two points.
                 sodipodi_dict[_type](elem)
                 return
             except Exception as e:
-                print ("<*> Exception %s processing sodipodi:%s" % (e,_type),file=sys.stderr)
+                self.log ("<*> Exception %s processing sodipodi:%s" % (e,_type))
         if len(cdefs) > 0: print (cdefs,file=self._output)
         while d is not None and len(d) > 0:
             ## print (self.path_chop(d,f,spec,i,style),file=sys.stderr)
             d,f,spec,i = self.path_chop(d,first=f,last_spec=spec,incremental=i,style=style)
         print (";",file=self._output)
 
-    def process_tspan(self,txt,x,y,stdict={}):
+    def process_tspan(self,txt,x,y,_id,stdict={}):
+        __id__ = _id
         def dict2style(styledict={},cdefs=[]):
             def mkFont(fname):
                 try:
@@ -495,21 +486,24 @@ Throws exception when no solutions are found, else returns the two points.
                 except:
                     return "font="
 
-            def mkAlign(style):
+            def mkAlign(style,id=None):
                 try:
                     al = {'start':'left','center':'center','end':'right' }[style]
                 except:
                     al = 'center'
                 if al != "center":
-                    print ("** Warning: ignored string alignment to the %s" % al,file=sys.stderr)
-                    print ("%%%% This element will be anyhow centered!",file=self._output)
+                    self.log ("** Warning: ignored string alignment to the {}".format(al),end='')
+                    if __id__ is not None:
+                        self.log(" for svg:text id={}".format(__id__),end='')
+                    self.log('!')
+                    print ("%%%% This element was originally aligned to the {}!".format(al),file=self._output)
                 return "align=%s" % al
 
             pxRe = re.compile(r"(-?\d+(\.\d+(e?[+-]?\d+)))([a-z]{2})?")
             def mkFSize(style):
                 try:
                     size = 0.0
-                    if self._debug: print ("**TODO refine mkFSize(%s)" % style)
+                    print ("**TODO refine mkFSize(%s)" % style,verbose=2)
                     val,_,_,unit = pxRe.match(style).groups()
                     fval = float(val)
                     for _min,_max,_result in [
@@ -531,11 +525,11 @@ Throws exception when no solutions are found, else returns the two points.
             }
 
             result = [xlatestyle[x](styledict[x]) for x in xlatestyle if x in styledict]
-            self.log(repr(result),end=" --> ") # ,_verbose=2)
+            self.log(repr(result),end=" --> ",verbose=2)
             fspec = "font=" + "".join([f[5:] for f in result if f.startswith("font=")])
             result = [ r for r in result if len(r)>0 and not r.startswith("font=")]
             if len(fspec) != 5: result.append(fspec)
-            self.log(repr(result)) #,_verbose=2)
+            self.log(repr(result),verbose=2)
             # result = [r for r in result if r is not None and len(r)>0]
             return "" if len(result) == 0 else "[" + ",".join(result) + "]","\n".join(cdefs)
 
@@ -551,22 +545,23 @@ Throws exception when no solutions are found, else returns the two points.
             return styledict
 
         x,y   = self.get_loc(elem)
+        _id   = elem.get("id")
         style = style2dict(elem.xpath("string(.//@style)",namespaces=self._nsmap))
-        print ("text.x,y = %d,%d" % (x,y),file=sys.stderr)
+        self.log ("text.x,y = %d,%d" % (x,y),verbose=2)
         if elem.text is None:
             for tspan in elem.xpath(".//svg:tspan",namespaces=self._nsmap):
                 _style = style2dict(tspan.xpath("string(.//@style)",namespaces=self._nsmap),
                                     dict(style))
                 try:
                     _x,_y   = self.get_loc(tspan)
-                    print (">> tspan.x,y = %d,%d" % (_x,_y),file=sys.stderr)
+                    self.log (">> tspan.x,y = %d,%d" % (_x,_y),verbose=2)
                 except:
                     _x,_y = x,y
-                self.process_tspan(tspan.text,_x,_y,_style)
+                self.process_tspan(tspan.text,_x,_y,_id,_style)
                 del _style
         else:
-            print (etree.tostring(elem,pretty_print=True),file=sys.stderr)
-            self.process_tspan(elem.text,x,y,style)
+            self.log (etree.tostring(elem,pretty_print=True))
+            self.process_tspan(elem.text,x,y,_id,style)
         del style
 
     transformRe = re.compile(r"(translate|rotate|matrix)\(([^)]+)\)")
@@ -575,18 +570,14 @@ Throws exception when no solutions are found, else returns the two points.
     def transform2scope(self,elem):
         transform = elem.xpath('string(.//@transform)')
         if transform == '': return False
-        if self._debug:
-            print ("transform2scope(%s)" % transform,file=sys.stderr)
+        self.log ("transform2scope(%s)" % transform,verbose=2)
         m = TiKZMaker.transformRe.match(transform)
-        if self._debug:
-            print (m.groups(),file=sys.stderr)
+        self.log (m.groups(),verbose=2)
         getFloats = TiKZMaker.floatRe.findall(m.group(2))
-        if self._debug:
-            print (getFloats,file=sys.stderr)
+        self.log (getFloats,verbose=2)
         nums = [ n for n,d,e in getFloats ]
         operation = m.group(1)
-        if self._debug:
-            print (operation,nums,file=sys.stderr)
+        self.log ("operation:{}, nums:{}".format(operation,repr(nums)),verbose=2)
         xform = []
 
         if operation == "translate":
@@ -611,7 +602,7 @@ Throws exception when no solutions are found, else returns the two points.
         if len(elem) == 0: return
 
         g_id = elem.get("id")
-        self.log("process_g: id={}".format(g_id),_verbose=2)
+        self.log("process_g: id={}".format(g_id),verbose=2)
         print ("%% Group {}".format(g_id),file=self._output)
 
         g_style = elem.get("style")
@@ -640,7 +631,7 @@ Throws exception when no solutions are found, else returns the two points.
                     if transform: print ("\\end{scope}",file=self._output)
                     break
             else:
-                print ("WARNING: <%s ../> not processed" % tag,file=sys.stderr)
+                self.log ("WARNING: <%s ../> not processed" % tag)
         if g_style is not None:
             pass # print ("\\end{scope}",file=self._output)
 
@@ -652,13 +643,12 @@ Throws exception when no solutions are found, else returns the two points.
     def mkTikz(self,svg):
         self._nsmap = { k:v for k,v in iter(svg.getroot().nsmap.items()) if k is not None }
         self._nsmap['svg'] = 'http://www.w3.org/2000/svg'
-        if self._debug: print (repr(self._nsmap),file=sys.stderr)
+        self.log (repr(self._nsmap),verbose=2)
 
         self._symbols = svg.xpath("//svg:symbol",namespaces=self._nsmap)
-        if self._debug:
-            print ("Getting symbols with XPATH")
-            for s in self._symbols:
-                print(etree.tostring(s))
+        self.log ("Getting symbols with XPATH",verbose=2)
+        for s in self._symbols:
+            self.log(etree.tostring(s),verbose=2)
 
         units = self._unit
         self._unit = svg.xpath("string(//svg:svg/sodipodi:namedview/@units)",namespaces=self._nsmap)
@@ -713,11 +703,11 @@ def main():
     if args.auto:
         import os
         args.output = os.path.splitext(args.infile)[0]+ ".tex"
-        print (" %s --> %s " % (args.infile,args.output),file=sys.stderr)
 
     processor = TiKZMaker(sys.stdout if args.output is None else codecs.open(args.output,"w",args.code),
                           debug=args.debug,
                           dpi=args.dpi)
+    processor.log (" %s --> %s " % (args.infile,args.output))
     try:
         tree = etree.parse(args.infile)
 
