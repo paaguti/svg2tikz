@@ -18,22 +18,20 @@ class TiKZMaker(object):
     _output     = None
     _unit       = "mm"
     _standalone = True
-    _debug      = False
     _symbols    = None
     _nsmap      = None
     _verbose    = 1
     _dpi        = 72
 
-    floatRe = r'(-?\d+(\.\d+)?([eE]-?\d+)?)'
-    tailRe  = r'(\s+(\S.*))?'
+    floatSpec = r'(-?\d+(\.\d+)?([eE]-?\d+)?)'
+    tailSpec  = r'(\s+(\S.*))?'
 
 
-    def __init__(self, output=sys.stdout, standalone = False,debug=0,unit="mm",dpi=72):
+    def __init__(self, output=sys.stdout, standalone=False, debug=1, unit="mm", dpi=72):
         self._output     = output
         self._unit       = unit
         self._standalone = standalone
         self._verbose    = debug
-        self._debug      = (debug != 0)
         self._dpi        = dpi
 
         self.log("Debugging!",verbose=2)
@@ -48,7 +46,8 @@ class TiKZMaker(object):
             print (colordef,file=file)
         print (strmsg,file=file)
 
-    str2uRe   = re.compile(floatRe+r'([a-z]{2})?')
+    str2uRe   = re.compile(floatSpec+r'([a-z]{2})?')
+
     def str2u(self,s):
         #f = float(s) if not isinstance(s,float) else s
         self.log ("str2u({})".format(repr(s)),verbose=2)
@@ -76,11 +75,8 @@ class TiKZMaker(object):
     namedTagRe = re.compile(r"({([^}]+)})(.*)")
     @classmethod
     def delNS(cls,tag):
-        # if self._debug:
-        #     print ("Full tag : '%s'" % tag,file=sys.stderr)
         m = cls.namedTagRe.match(tag)
-        if cls._debug:
-            self.log (m.groups())
+        self.log ("delNS: tag='{}' --> {}".format(tag,repr(m.groups())),verbose=2)
         return m.group(3)
 
     def circle_center(self,x1,y1,r):
@@ -236,7 +232,7 @@ Throws exception when no solutions are found, else returns the two points.
                          "\\draw %s %s ellipse %s ;" % (style,self.pt2str(x,y),self.pt2str(rx,ry,' and ')),
                          file=self._output)
 
-    dimRe   = re.compile(floatRe + r'[, ]' + floatRe + tailRe)
+    dimRe   = re.compile(floatSpec + r'[, ]' + floatSpec + tailSpec)
     def dimChop(self,s):
         m=TiKZMaker.dimRe.match(s)
         self.log('dimChop({}) = {}'.format(s,repr(m.groups())),verbose=2)
@@ -244,19 +240,19 @@ Throws exception when no solutions are found, else returns the two points.
         y=float(m.group(4))
         return self.pt2str(x,y),m.group(8),x,y
 
-    intRe = re.compile (r'(-?\d+)'+tailRe)
+    intRe = re.compile (r'(-?\d+)'+tailSpec)
     def intChop(self,s):
         m = TiKZMaker.intRe.match(s)
         self.log('intChop({})={}'.format(s,m.groups()),verbose=2)
         return m.group(1),m.group(3),int(m.group(1))
 
-    numRe = re.compile (floatRe+tailRe)
+    numRe = re.compile (floatSpec+tailSpec)
     def numChop(self,s):
         m = TiKZMaker.numRe.match(s)
-        self.log('numChop({})={}'.format(s,m.groups()),verbose=2)
+        self.log('numChop({})={}'.format(s,repr(m.groups())),verbose=2)
         return m.group(1),m.group(4),float(m.group(1))
 
-    pathRe = re.compile(r'([aAcCqQlLmMhHvV] )?'+floatRe+'([, ]'+floatRe+')?([ ,]+(.*))?')
+    pathRe = re.compile(r'([aAcCqQlLmMhHvV] )?'+floatSpec+'([, ]'+floatSpec+')?([ ,]+(.*))?')
 
     # path_chop
     # @param:
@@ -431,7 +427,10 @@ Throws exception when no solutions are found, else returns the two points.
         x1 = cx + rx * math.cos(start)
         y1 = cy + ry * math.sin(start)
 
-        for f in [self._output,sys.stderr] if self._debug else [self._output]:
+        outstreams = [self._output,sys.stderr]
+        if self._verbose == 1:
+            outstreams.pop()
+        for f in  outstreams:
             TiKZMaker.output(cdefs,
                              "\\draw %s %s arc (%.2f:%.2f:%s and %s);" %
                              (style, self.pt2str(x1,y1),math.degrees(start),math.degrees(end),
@@ -572,57 +571,61 @@ Throws exception when no solutions are found, else returns the two points.
         del style
 
     transformRe = re.compile(r"(translate|rotate|matrix|scale)\(([^)]+)\)")
-    floatNumRe  = re.compile(floatRe)
+    floatRe  = re.compile(floatSpec)
 
-    def transformTranslate(xform, nums):
+
+    def transformTranslate(self, xform, nums):
         xform.append("shift={(%s,%s)}" %
                      (self.str2u(nums[0]),
                       self.str2u(nums[1] if len(nums)>1 else "0")))
         return xform
 
-    def transformRotate(xform, nums):
+    def transformRotate(self, xform, nums):
         if len(nums) == 1:
             xform.append("rotate=%s" % nums[0])
         else:
             xform.append("rotate around={%s:(%s,%s)}" %
                          (nums[0],
-                          self.str2u(nums[1]),self.str2u(nums[2])))
+                          self.str2u(nums[1]),
+                          self.str2u(nums[2])))
         return xform
 
-    def transformMatrix(xform,nums):
+    def transformMatrix(self, xform,nums):
         xform.append("cm={%s,%s,%s,%s,(%s,%s)}" %
                      (nums[0],nums[1],nums[2],nums[3],
-                      self.str2u(nums[4]),self.str2u(nums[5])))
+                      self.str2u(nums[4]),
+                      self.str2u(nums[5])))
         return xform
 
-    def transformScale(xform, nums):
+    def transformScale(self,xform, nums):
         xform.append("xscale={}".format(nums[0]))
         xform.append("yscale={}".format(nums[1]))
         return xform
 
-    transformProcess = {
-        "translate" : lambda xform,nums: transformTranslate(xform,nums),
-        "rotate":     lambda xform,nums: transformRotate(xform,nums),
-        "matrix":     lambda xform,nums: transformMatrix(xform,nums),
-        'scale':      lambda xform,nums: transformScale(xform,nums),
-    }
-
     def transform2scope(self,elem):
+        transformProcess = {
+            "translate" : lambda xform,nums: self.transformTranslate(xform, nums),
+            "rotate":     lambda xform,nums: self.transformRotate(xform, nums),
+            "matrix":     lambda xform,nums: self.transformMatrix(xform, nums),
+            'scale':      lambda xform,nums: self.transformScale(xform, nums),
+        }
+
         transform = elem.xpath('string(.//@transform)')
         if transform == '': return False
         self.log ("transform2scope(%s)" % transform,verbose=2)
         m = TiKZMaker.transformRe.match(transform)
         self.log (m.groups(),verbose=2)
-        getFloats = TiKZMaker.floatNumRe.findall(m.group(2))
+        getFloats = TiKZMaker.floatRe.findall(m.group(2))
         self.log (repr(getFloats),verbose=2)
         nums = [ n for n,d,e in getFloats ]
         operation = m.group(1)
         self.log ("operation:{}, nums:{}".format(operation,repr(nums)),verbose=2)
         xform = []
         try:
-            xform = transformProcess[operation](xform, process)
-        except:
-            pass
+            xform = transformProcess[operation](xform, nums)
+        except Exception as exc:
+            self.log(">>> transform2scope({}) ==> {}".format(transform,repr(exc)))
+        self.log(">>> transform2scope({}) = {}".format(transform,repr(xform)),verbose=2)
         if len(xform) > 0:
             print ("\\begin{scope}[%s]" % ",".join(xform),file=self._output)
             return True
@@ -702,7 +705,7 @@ def main():
     parser.add_argument("-d","--debug",
                         dest="debug",
                         action = "count",
-                        default = 0,
+                        default = 1,
                         help="Enable debugging messages (repeat for more messages)")
     parser.add_argument("-a","--auto",
                         dest="auto",

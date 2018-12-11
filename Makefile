@@ -3,8 +3,8 @@ all:	mount-ns.pdf
 %.pdf:	%.tex
 	pdflatex -interaction=nonstopmode $(<:%.tex=%) > /dev/null
 
-%.tex:	%.svg | svg2tikz.py 
-	python3 $| -s -dd -a $<
+%.tex:	%.svg | svg2tikz.py
+	python3 $| -s  -a $<
 
 tikz.pdf:	tikz.tex
 tikz.tex:	tikz.svg
