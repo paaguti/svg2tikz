@@ -232,24 +232,29 @@ Throws exception when no solutions are found, else returns the two points.
                          "\\draw %s %s ellipse %s ;" % (style,self.pt2str(x,y),self.pt2str(rx,ry,' and ')),
                          file=self._output)
 
-    dimRe  = re.compile(r"(-?\d+(\.\d+)?)[, ](-?\d+(\.\d+)?)(\s+(\S.*))?")
+    floatRe = r'(-?\d+(\.\d+)?([eE]-?\d+)?)'
+    tailRe  = r'(\s+(\S.*))?'
+    dimRe   = re.compile(floatRe + r'[, ]' + floatRe + tailRe)
     def dimChop(self,s):
         m=TiKZMaker.dimRe.match(s)
+        self.log('dimChop({}) = {}'.format(s,repr(m.groups())),verbose=2)
         x=float(m.group(1))
-        y=float(m.group(3))
-        return self.pt2str(x,y),m.group(6),x,y
+        y=float(m.group(4))
+        return self.pt2str(x,y),m.group(8),x,y
 
-    intRe = re.compile (r"(-?\d+)(\s+(\S.*))?")
+    intRe = re.compile (r'(-?\d+)'+tailRe)
     def intChop(self,s):
         m = TiKZMaker.intRe.match(s)
+        self.log('intChop({})={}'.format(s,m.groups()),verbose=2)
         return m.group(1),m.group(3),int(m.group(1))
 
-    numRe = re.compile (r"(-?\d+(\.\d+)?)(\s+(\S.*))?")
+    numRe = re.compile (floatRe+tailRe)
     def numChop(self,s):
         m = TiKZMaker.numRe.match(s)
+        self.log('numChop({})={}'.format(s,m.groups()),verbose=2)
         return m.group(1),m.group(4),float(m.group(1))
 
-    pathRe = re.compile(r"([aAcCqQlLmMhHvV] )?(-?\d+(\.\d+)?(e-?\d+)?)([, ](-?\d+(\.\d+)?(e-?\d+)?))?([ ,]+(.*))?")
+    pathRe = re.compile(r'([aAcCqQlLmMhHvV] )?'+floatRe+'([, ]'+floatRe+')?([ ,]+(.*))?')
 
     # path_chop
     # @param:
