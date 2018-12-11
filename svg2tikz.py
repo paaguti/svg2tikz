@@ -596,8 +596,8 @@ Throws exception when no solutions are found, else returns the two points.
             xform.append("cm={%s,%s,%s,%s,(%s,%s)}" % (nums[0],nums[1],nums[2],nums[3],
                                                        self.str2u(nums[4]),self.str2u(nums[5])))
         elif operation == 'scale':
-            xform.append("xscale={}".format(self.str2u(nums[0])))
-            xform.append("yscale={}".format(self.str2u(nums[1])))
+            xform.append("xscale={}".format(nums[0]))
+            xform.append("yscale={}".format(nums[1]))
 
         if len(xform) > 0:
             print ("\\begin{scope}[%s]" % ",".join(xform),file=self._output)
