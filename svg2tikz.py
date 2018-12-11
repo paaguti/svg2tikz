@@ -24,15 +24,17 @@ class TiKZMaker(object):
     _verbose    = 1
     _dpi        = 72
 
-    str2uRe   = re.compile(r"(-?\d*.?\d*e?[+-]?\d*)([a-z]{2})?")
+    floatRe = r'(-?\d+(\.\d+)?([eE]-?\d+)?)'
+    tailRe  = r'(\s+(\S.*))?'
 
-    def __init__(self, output=sys.stdout, standalone = False,debug=False,unit="mm",dpi=72):
+
+    def __init__(self, output=sys.stdout, standalone = False,debug=0,unit="mm",dpi=72):
         self._output     = output
         self._unit       = unit
         self._standalone = standalone
-        self._debug      = debug
+        self._verbose    = debug
+        self._debug      = (debug != 0)
         self._dpi        = dpi
-        if self._debug:  self._verbose=2
 
         self.log("Debugging!",verbose=2)
 
@@ -46,6 +48,7 @@ class TiKZMaker(object):
             print (colordef,file=file)
         print (strmsg,file=file)
 
+    str2uRe   = re.compile(floatRe+r'([a-z]{2})?')
     def str2u(self,s):
         #f = float(s) if not isinstance(s,float) else s
         self.log ("str2u({})".format(repr(s)),verbose=2)
@@ -53,8 +56,10 @@ class TiKZMaker(object):
             f = s
             u = self._unit
         else:
-            e = TiKZMaker.str2uRe.findall(s)[0]
-            n,u = e
+            fall = TiKZMaker.str2uRe.findall(s)
+            self.log("str2uRe.findall({}) -> {}".format(s,repr(fall[0])),verbose=3)
+            e = fall[0]
+            n,_,_,u = e
             f = float(n)
             if u == "px":
                 f *= 25.4/72.0
@@ -137,9 +142,9 @@ Throws exception when no solutions are found, else returns the two points.
         b = int("0x"+colour[5:],0)
         return "{RGB}{%d,%d,%d}" % (r,g,b)
 
+    rgbSpecRe = re.compile("rgb\((\d+%?),(\d+%?),(\d+%?)\)")
     def rgb2colour(self,colour):
-        rgbSpec = re.compile("rgb\((\d+%?),(\d+%?),(\d+%?)\)")
-        m = rgbSpec.match(colour)
+        m = rgbSpecRe.match(colour)
         if m is None: return colour, None
         r = int(m.group(1)[:-1]) * 255 if m.group(1).endswith('%') else int(m.group(1))
         g = int(m.group(2)[:-1]) * 255 if m.group(2).endswith('%') else int(m.group(2))
@@ -168,7 +173,6 @@ Throws exception when no solutions are found, else returns the two points.
                 result = cname
         self.log(result,verbose=2)
         return result
-
 
     def style2colour(self,style):
         self.log("style2colour(%s)" % style,end=" = ",verbose=2)
@@ -232,8 +236,6 @@ Throws exception when no solutions are found, else returns the two points.
                          "\\draw %s %s ellipse %s ;" % (style,self.pt2str(x,y),self.pt2str(rx,ry,' and ')),
                          file=self._output)
 
-    floatRe = r'(-?\d+(\.\d+)?([eE]-?\d+)?)'
-    tailRe  = r'(\s+(\S.*))?'
     dimRe   = re.compile(floatRe + r'[, ]' + floatRe + tailRe)
     def dimChop(self,s):
         m=TiKZMaker.dimRe.match(s)
@@ -570,7 +572,40 @@ Throws exception when no solutions are found, else returns the two points.
         del style
 
     transformRe = re.compile(r"(translate|rotate|matrix|scale)\(([^)]+)\)")
-    floatRe     = re.compile(r"(-?\d+(\.\d+([eE]-?\d+)?)?)")
+    floatNumRe  = re.compile(floatRe)
+
+    def transformTranslate(xform, nums):
+        xform.append("shift={(%s,%s)}" %
+                     (self.str2u(nums[0]),
+                      self.str2u(nums[1] if len(nums)>1 else "0")))
+        return xform
+
+    def transformRotate(xform, nums):
+        if len(nums) == 1:
+            xform.append("rotate=%s" % nums[0])
+        else:
+            xform.append("rotate around={%s:(%s,%s)}" %
+                         (nums[0],
+                          self.str2u(nums[1]),self.str2u(nums[2])))
+        return xform
+
+    def transformMatrix(xform,nums):
+        xform.append("cm={%s,%s,%s,%s,(%s,%s)}" %
+                     (nums[0],nums[1],nums[2],nums[3],
+                      self.str2u(nums[4]),self.str2u(nums[5])))
+        return xform
+
+    def transformScale(xform, nums):
+        xform.append("xscale={}".format(nums[0]))
+        xform.append("yscale={}".format(nums[1]))
+        return xform
+
+    transformProcess = {
+        "translate" : lambda xform,nums: transformTranslate(xform,nums),
+        "rotate":     lambda xform,nums: transformRotate(xform,nums),
+        "matrix":     lambda xform,nums: transformMatrix(xform,nums),
+        'scale':      lambda xform,nums: transformScale(xform,nums),
+    }
 
     def transform2scope(self,elem):
         transform = elem.xpath('string(.//@transform)')
@@ -578,32 +613,20 @@ Throws exception when no solutions are found, else returns the two points.
         self.log ("transform2scope(%s)" % transform,verbose=2)
         m = TiKZMaker.transformRe.match(transform)
         self.log (m.groups(),verbose=2)
-        getFloats = TiKZMaker.floatRe.findall(m.group(2))
-        self.log (getFloats,verbose=2)
+        getFloats = TiKZMaker.floatNumRe.findall(m.group(2))
+        self.log (repr(getFloats),verbose=2)
         nums = [ n for n,d,e in getFloats ]
         operation = m.group(1)
         self.log ("operation:{}, nums:{}".format(operation,repr(nums)),verbose=2)
         xform = []
-
-        if operation == "translate":
-            xform.append("shift={(%s,%s)}" % (self.str2u(nums[0]),self.str2u(nums[1] if len(nums)>1 else "0")))
-        elif operation == "rotate":
-            if len(nums) == 1:
-                xform.append("rotate=%s" % nums[0])
-            else:
-                xform.append("rotate around={%s:(%s,%s)}" % (nums[0],self.str2u(nums[1]),self.str2u(nums[2])))
-        elif operation == "matrix":
-            xform.append("cm={%s,%s,%s,%s,(%s,%s)}" % (nums[0],nums[1],nums[2],nums[3],
-                                                       self.str2u(nums[4]),self.str2u(nums[5])))
-        elif operation == 'scale':
-            xform.append("xscale={}".format(nums[0]))
-            xform.append("yscale={}".format(nums[1]))
-
+        try:
+            xform = transformProcess[operation](xform, process)
+        except:
+            pass
         if len(xform) > 0:
             print ("\\begin{scope}[%s]" % ",".join(xform),file=self._output)
             return True
         return False
-
 
     namedTagRe = re.compile(r"({([^}]+)})(.*)")
 
@@ -678,9 +701,9 @@ def main():
     parser.add_argument('--version', action='version', version='%(prog)s 3.0')
     parser.add_argument("-d","--debug",
                         dest="debug",
-                        action = "store_true",
-                        help="Enable debugging messages")
-
+                        action = "count",
+                        default = 0,
+                        help="Enable debugging messages (repeat for more messages)")
     parser.add_argument("-a","--auto",
                         dest="auto",
                         action = "store_true",
