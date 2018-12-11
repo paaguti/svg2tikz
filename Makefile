@@ -1,16 +1,16 @@
 all:	mount-ns.pdf
 
-tikz.pdf:	tikz.tex
-	pdflatex -interaction=nonstopmode tikz > /dev/null
+%.pdf:	%.tex
+	pdflatex -interaction=nonstopmode $(<:%.tex=%) > /dev/null
 
-tikz.tex:	svg2tikz.py tikz.svg
-	python3 svg2tikz.py -s -d -a tikz.svg
+%.tex:	%.svg | svg2tikz.py 
+	python3 $| -s -dd -a $<
+
+tikz.pdf:	tikz.tex
+tikz.tex:	tikz.svg
 
 mount-ns.pdf:	mount-ns.tex
-	pdflatex -interaction=nonstopmode mount-ns > /dev/null
-
-mount-ns.tex:	svg2tikz.py mount-ns.svg
-	python3 svg2tikz.py -s -dd -a mount-ns.svg
+mount-ns.tex:	mount-ns.svg
 
 clean:
 	-latexmk -c
