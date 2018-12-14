@@ -22,17 +22,20 @@ class TiKZMaker(object):
     _nsmap      = None
     _verbose    = 1
     _dpi        = 72
+    _round      = False
+    _decimals   = 1
 
     floatSpec = r'(-?\d+(\.\d+)?([eE]-?\d+)?)'
     tailSpec  = r'(\s+(\S.*))?'
 
 
-    def __init__(self, output=sys.stdout, standalone=False, debug=1, unit="mm", dpi=72):
+    def __init__(self, output=sys.stdout, standalone=False, debug=1, unit="mm", dpi=72, round=False):
         self._output     = output
         self._unit       = unit
         self._standalone = standalone
         self._verbose    = debug
         self._dpi        = dpi
+        self._round      = round
 
         self.log("Debugging!",verbose=2)
 
@@ -66,7 +69,7 @@ class TiKZMaker(object):
             else:
                 if u == "":
                     u = self._unit
-        return "%.2f%s" % (f,u)
+        return "%.1f%s" % (round(f, 0 if self._round else self._decimals),u)
 
     def pt2str(self,x=None,y=None,sep=','):
         assert x is not None and y is not None
@@ -723,6 +726,10 @@ def main():
                         dest="dpi",
                         type=int,default=72,
                         help="Resolution (assume 72dpi)")
+    parser.add_argument("-R","--round",
+                        dest="round",
+                        action = "store_true",
+                        help="Round numbers to the nearest integer (default is 1 decimal)")
     parser.add_argument("-s","--standalone",
                         dest="standalone",
                         action = "store_true",
@@ -741,7 +748,8 @@ def main():
 
     processor = TiKZMaker(sys.stdout if args.output is None else codecs.open(args.output,"w",args.code),
                           debug=args.debug,
-                          dpi=args.dpi)
+                          dpi=args.dpi,
+                          round=args.round)
     processor.log (" %s --> %s " % (args.infile,args.output))
     try:
         tree = etree.parse(args.infile)
