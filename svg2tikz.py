@@ -698,7 +698,24 @@ Throws exception when no solutions are found, else returns the two points.
         self._unit = svg.xpath("string(//svg:svg/sodipodi:namedview/@units)",namespaces=self._nsmap)
         if len(self._unit) == 0: self._unit = units
 
+        height=None
+        try:
+            height = svg.getroot().xpath("string(//svg:svg/@height)",namespaces=self._nsmap)
+            self.log(" height: {}".format(height))
+        except: pass
+
+        width=None
+        try:
+            width = svg.getroot().xpath("string(//svg:svg/@width)",namespaces=self._nsmap)
+            self.log(" width: {}".format(width))
+        except: pass
+
         print ("\\begin{tikzpicture}[yscale=-1]",file=self._output)
+
+        if height is not None and width is not None:
+            print('\\useasboundingbox(0,0) rectangle ({},{});'.format(self.str2u(width),
+                                                                      self.str2u(height)),file=self._output)
+
         for elem in svg.xpath("//svg:svg/svg:g",namespaces=self._nsmap):
             if len(elem) > 0:
                 transform = self.transform2scope(elem)
