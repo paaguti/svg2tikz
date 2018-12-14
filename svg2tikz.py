@@ -51,7 +51,10 @@ class TiKZMaker(object):
 
     str2uRe   = re.compile(floatSpec+r'([a-z]{2})?')
 
-    def str2u(self,s):
+    # str2u return a floating with the units
+    # s: a float or a string
+    # do_round: set to False to suppress rounding
+    def str2u(self,s, do_round=True):
         #f = float(s) if not isinstance(s,float) else s
         self.log ("str2u({})".format(repr(s)),verbose=2)
         if isinstance(s,float):
@@ -69,7 +72,10 @@ class TiKZMaker(object):
             else:
                 if u == "":
                     u = self._unit
-        return "%.1f%s" % (round(f, 0 if self._round else self._decimals),u)
+        decs = self._decimals
+        if self._round and do_round:
+            decs=0
+        return "%.1f%s" % (round(f,decs), u)
 
     def pt2str(self,x=None,y=None,sep=','):
         assert x is not None and y is not None
@@ -180,7 +186,7 @@ Throws exception when no solutions are found, else returns the two points.
         s2cDict = {
             'stroke':       lambda c: "draw=" + self.hex2colour(c,cname='dc',cdef=cdef),
             'fill':         lambda c: "fill=" + self.hex2colour(c,cname='fc',cdef=cdef),
-            'stroke-width': lambda c: "line width=" + self.str2u(c)
+            'stroke-width': lambda c: "line width=" + self.str2u(c, do_round=False)
         }
         for s in style.split(';'):
             m,c = s.split(':')
