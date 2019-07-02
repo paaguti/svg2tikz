@@ -5,7 +5,7 @@ all:	tikz.pdf
 	pdflatex -interaction=nonstopmode $(<:%.tex=%) > /dev/null
 
 %.tex:	%.svg | svg2tikz.py
-	python3 $| -s -R -a $<
+	python3 $| -s -a $<
 
 tikz.pdf:	tikz.tex
 tikz.tex:	tikz.svg
