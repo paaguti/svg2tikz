@@ -502,17 +502,18 @@ Throws exception when no solutions are found, else returns the two points.
                     return "font="
 
             def mkAlign(style,id=None):
+                align_xlate = {
+                    'start':  'anchor=west',
+                    'center': 'align=center',
+                    'end':    'anchor=east'
+                }
                 try:
-                    al = {'start':'left','center':'center','end':'right' }[style]
+                    return align_xlate[style]
                 except:
-                    al = 'center'
-                if al != "center":
-                    self.log ("** Warning: ignored string alignment to the {}".format(al),end='')
-                    if __id__ is not None:
-                        self.log(" for svg:text id={}".format(__id__),end='')
-                    self.log('!')
-                    print ("%%%% This element was originally aligned to the {}!".format(al),file=self._output)
-                return "align=%s" % al
+                    self.log ("** Warning: ignored string alignment {}".format(style),end='')
+                    if __id__ is not None: self.log(" for element {}".format(__id__),end='')
+                    self.log ('!!')
+                    return aling_xlate['center']
 
             pxRe = re.compile(r"(-?\d+(\.\d+(e?[+-]?\d+)))([a-z]{2})?")
             def mkFSize(style):
