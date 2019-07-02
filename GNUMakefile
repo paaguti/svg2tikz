@@ -6,6 +6,13 @@ all:	kk.pdf
 kk.tex:	i2rs-arch.svg svg2tikz.py
 	python svg2tikz.py -o $@ -s -d $< 
 
+multi:	test-multi.pdf
+
+test-multi.pdf:	test-multi.tex mount-ns.tex
+
+mount-ns.tex:	mount-ns.svg svg2tikz.py
+	python3 svg2tikz.py --multi -a $<
+
 clean:
 	rm -vf *.aux *.log *~ kk.tex
 

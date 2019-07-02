@@ -321,6 +321,10 @@ Throws exception when no solutions are found, else returns the two points.
         ## print (' --]]>> [%s|%s]' % (spec,rest),file=sys.stderr)
 
         x1,y1='0.0','0.0'
+        #
+        # TODO: H xx implies keeping the vertical coordinate!
+        # TODO: check V xx
+        #
         if spec in ['h','H']:
             x1 = m.group(2)
         elif spec in [ 'v','V']:
@@ -759,6 +763,10 @@ def main():
                         dest='round',
                         action = 'store_true',
                         help='Round numbers to the nearest integer (default is 1 decimal)')
+    parser.add_argument('-M','--multi',
+                        dest='multi',
+                        action = 'store_true',
+                        help='Make a multi-slide LaTEX file')
     parser.add_argument('-s','--standalone',
                         dest='standalone',
                         action = 'store_true',
@@ -778,6 +786,12 @@ def main():
     if args.auto:
         import os
         args.output = os.path.splitext(args.infile)[0]+ '.tex'
+
+    if args.multi:
+        if args.standalone:
+            print('*** svg2tikz.py: cannot generate multi-slide standalone beamers', file=sys.stderr)
+            raise SystemExit
+    print(" >> WARNING: --multi not implemented yet!", file=sys.stderr)
 
     processor = TiKZMaker(sys.stdout if args.output is None else codecs.open(args.output,'w',args.code),
                           debug=args.debug,
