@@ -1,10 +1,13 @@
-all:	kk.pdf
+all:	tikz.pdf
 
 %.pdf:	%.tex
 	latexmk -pdf -interaction=nonstopmode $(patsubst %.pdf,%,$@) > /dev/null
 
+tikz.tex:	tikz.svg svg2tikz.py
+	python3 svg2tikz.py -o $@ -s -d $< 
+
 kk.tex:	i2rs-arch.svg svg2tikz.py
-	python svg2tikz.py -o $@ -s -d $< 
+	python3 svg2tikz.py -o $@ -s -d $< 
 
 multi:	test-multi.pdf
 
