@@ -17,11 +17,12 @@ mount-ns.tex:	mount-ns.svg svg2tikz.py
 	python3 svg2tikz.py --multi -a $<
 
 clean:
-	latexmk -C
+	latexmk -c
 	rm -vf *~ kk.tex
 
 realclean:
-	rm -vf kk.pdf
+	latexmk -C
+	rm -vf kk.pdf mount-ns.tex tikz.tex
 
 rebuild:	realclean clean all
 
