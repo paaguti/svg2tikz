@@ -14,7 +14,8 @@ mount-ns.tex:	mount-ns.svg svg2tikz.py
 	python3 svg2tikz.py --multi -a $<
 
 clean:
-	rm -vf *.aux *.log *~ kk.tex
+	latexmk -C
+	rm -vf *~ kk.tex
 
 realclean:
 	rm -vf kk.pdf
