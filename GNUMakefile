@@ -1,0 +1,16 @@
+all:	kk.pdf
+
+%.pdf:	%.tex
+	latexmk -pdf -interaction=nonstopmode $(patsubst %.pdf,%,$@) > /dev/null
+
+kk.tex:	i2rs-arch.svg svg2tikz.py
+	python svg2tikz.py -o $@ -s -d $< 
+
+clean:
+	rm -vf *.aux *.log *~ kk.tex
+
+realclean:
+	rm -vf kk.pdf
+
+rebuild:	realclean clean all
+
