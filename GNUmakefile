@@ -16,6 +16,8 @@ test-multi.pdf:	test-multi.tex mount-ns.tex
 mount-ns.tex:	mount-ns.svg svg2tikz.py
 	python3 svg2tikz.py --multi -a $<
 
+devel:
+	python3 path.py 2> /dev/null
 clean:
 	latexmk -C
 	rm -vf *~ kk.tex

@@ -25,6 +25,12 @@ class TiKZMaker(object):
     _round      = False
     _decimals   = 1
 
+    # Keep track of where the point is and where the path started
+    _lastx      = 0
+    _startx     = 0
+    _lasty      = 0
+    _starty     = 0
+
     floatSpec = r'(-?\d+(\.\d+)?([eE]-?\d+)?)'
     tailSpec  = r'(\s+(\S.*))?'
 
@@ -36,6 +42,7 @@ class TiKZMaker(object):
         self._verbose    = debug
         self._dpi        = dpi
         self._round      = round
+
 
         self.log('Debugging!',verbose=2)
 
@@ -59,6 +66,9 @@ class TiKZMaker(object):
         self.log ('str2u({})'.format(repr(s)),verbose=2)
         if isinstance(s,float):
             f = s
+            u = self._unit
+        elif isinstance(s,int):
+            f = float(s)
             u = self._unit
         else:
             fall = TiKZMaker.str2uRe.findall(s)
@@ -276,7 +286,7 @@ Throws exception when no solutions are found, else returns the two points.
     #  spec:        spec for next operation
     #  incremental: whether next operation will be incremental
 
-    def path_chop(self,d,first=True,last_spec='',incremental=True,style=None):
+    def path_chop(self, d, first=True, last_spec='', incremental=True, style=None):
 
         def path_controls(inc,p1,p2,p3):
             print ('.. controls %s%s and %s%s .. %s%s' % (inc,p1,inc,p2,inc,p3),
@@ -296,6 +306,8 @@ Throws exception when no solutions are found, else returns the two points.
         self.log (f'[{last_spec}] -->> {d}', verbose=2)
         if d[0].upper() == 'Z':
             print ('-- cycle',file=self._output)
+            self._lastx = self._startx
+            self._lasty = self._starty
             return None, False, last_spec, incremental
         m = TiKZMaker.pathRe.match(d)
         # self.log (m)
@@ -325,19 +337,49 @@ Throws exception when no solutions are found, else returns the two points.
         # TODO: H xx implies keeping the vertical coordinate!
         # TODO: check V xx
         #
-        if spec in ['h','H']:
-            x1 = m.group(2)
-        elif spec in [ 'v','V']:
-            y1 = m.group(2)
-        else:
+        if spec not in ['h','H','v','V']:
             x1 = float(m.group(2))
             y1 = float(m.group(6))
         pt = self.pt2str(x1,y1)
 
-        if spec in ['h','H','l','L','v','V'] or spec is None:
+        if spec in ['l','L'] or spec is None:
+            print ('-- %s%s' % (inc,pt),file=self._output)
+            if spec == 'L':
+                self._lastx = x1
+                self._lasty = y1
+            else:
+                self._lastx += x1
+                self._lasty += y1
+        elif spec in ['h','v']:
+            x = float(m.group(2))
+            if spec == 'h':
+                pt = self.pt2str(x,0)
+                self._lastx += x
+            else:
+                pt = self.pt2str(0,x)
+                self._lasty += x
+            print ('-- %s%s' % (inc,pt),file=self._output)
+        elif spec in ['H','V']:
+            dim = float(m.group(2))
+            if spec == 'H':
+                pt = self.pt2str(dim, self._lasty)
+                self._lastx = dim
+            else:
+                pt = self.pt2str(self._lastx, dim)
+                self._lasty = dim
             print ('-- %s%s' % (inc,pt),file=self._output)
         elif spec in [ 'M','m']:
             if not first: print(';',file=self._output)
+            if spec == 'M':
+                self._lastx = x1
+                self._lasty = y1
+            else:
+                self._lastx += x1
+                self._lasty += y1
+            #
+            # This is the point for the next 'z' or 'Z'
+            self._startx = self._lastx
+            self._starty = self._lasty
             print('\\draw %s %s%s' % (style,inc,pt),file=self._output)
         elif spec in ['c', 'C']:
             pt2,rest,x2,y2 = self.dimChop(rest)
@@ -354,14 +396,24 @@ Throws exception when no solutions are found, else returns the two points.
                 self.log ('** Warning: check controls',verbose=2)
                 print ('%%%% Warning: check controls',file=self._output)
             path_controls (inc,pt,pt2,pt3)
+            if spec == 'C':
+                self._lastx = x3
+                self._lasty = y3
+            else:
+                self._lastx += x3
+                self._lasty += y3
         elif spec in ['Q','q']:
             self.log ('>> Decoding quadratic Bezier curve',verbose=2)
             pt2,rest,x2,y2 = self.dimChop(rest)
             if spec == 'Q':
+                self._lastx = x2
+                self._lasty = y2
                 self.log ('%% Warning: ignoring (abs) Quadratic Bezier')
                 print ('%% This should be a quadratic Bezier with control point at %s' % pt,file=self._output)
                 print (' -- %s' % (pt2),file=self._output)
             else:
+                self._lastx += x2
+                self._lasty += y2
                 #
                 # See http://www.latex-community.org/forum/viewtopic.php?t=4424&f=45
                 # And above
@@ -392,6 +444,12 @@ Throws exception when no solutions are found, else returns the two points.
             except Exception as e:
                 self.log("ERROR: <{}> Couldn't process spec: {} {:6.1f},{:6.1f} {} {} {} {:6.1f},{:6.1f}".format(e, spec, x1, y1, _xrot, _large, _swap, _x, _y))
                 print ("%%%% ERROR: Couldn't process spec: {} {:6.1f},{:6.1f} {} {} {} {} {:6.1f},{:6.1f}".format(spec, x1,y1,_xrot,_large,_swap,_x,_y), file=self._output)
+            if spec == 'A':
+                self._lastx = _x
+                self._lasty = _y
+            else:
+                self._lastx += _x
+                self._lasty += _y
         else:
             self.log (f"Warning: didn't process '{spec}' in path")
         return rest,False,spec,incremental
@@ -456,15 +514,15 @@ Throws exception when no solutions are found, else returns the two points.
         i = False
         try:
             pid = elem.attrib['id']
-            print (f"%% path id='{pid}'", file=self._output)
+            print (f'%% path id="{pid}"', file=self._output)
         except: pass
-        print ("%% path spec='{d}'", file=self._output)
+        print (f'%% path spec="{d}"', file=self._output)
         try:
             _style = elem.attrib['style']
-            self.log (f"%% From '{_style}'", verbose=2)
+            self.log (f'%% From "{_style}"', verbose=2)
             style,cdefs = self.style2colour(_style)
-            self.log (f"%% style= '{style}'", verbose=2)
-            self.log (f"%% colour defs = '{cdefs}'", verbose=2)
+            self.log (f'%% style= "{style}"', verbose=2)
+            self.log (f'%% colour defs = "{cdefs}"', verbose=2)
         except Exception as e:
             style,cdefs = '',''
 
@@ -489,6 +547,7 @@ Throws exception when no solutions are found, else returns the two points.
         while d is not None and len(d) > 0:
             ## print (self.path_chop(d,f,spec,i,style),file=sys.stderr)
             d,f,spec,i = self.path_chop(d,first=f,last_spec=spec,incremental=i,style=style)
+            # print(f'%% point=({self._lastx:.1f},{self._lasty:.1f})', file=self._output)
         print (';',file=self._output)
 
     def process_tspan(self,txt,x,y,_id,stdict={}):
