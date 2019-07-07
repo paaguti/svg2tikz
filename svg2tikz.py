@@ -35,14 +35,14 @@ class TiKZMaker(object):
     tailSpec  = r'(\s+(\S.*))?'
 
 
-    def __init__(self, output=sys.stdout, standalone=False, debug=1, unit='mm', dpi=72, round=False):
+    def __init__(self, output=sys.stdout, standalone=False, debug=1, unit='mm', dpi=72, round=False, multi=False):
         self._output     = output
         self._unit       = unit
         self._standalone = standalone
         self._verbose    = debug
         self._dpi        = dpi
         self._round      = round
-
+        self._multi      = multi
 
         self.log('Debugging!',verbose=2)
 
@@ -526,7 +526,6 @@ Throws exception when no solutions are found, else returns the two points.
         except Exception as e:
             style,cdefs = '',''
 
-
         spec = None
 
         _type = elem.xpath('string(.//@sodipodi:type)', namespaces=self._nsmap)
@@ -706,16 +705,16 @@ Throws exception when no solutions are found, else returns the two points.
 
     namedTagRe = re.compile(r'({([^}]+)})(.*)')
 
-    def process_g(self,elem):
+    def process_g(self, elem, top=False):
         if len(elem) == 0: return
 
         g_id = elem.get('id')
-        self.log('process_g: id={}'.format(g_id),verbose=2)
-        print ('%% Group {}'.format(g_id),file=self._output)
+        self.log(f'process_g: id={g_id}', verbose=2)
+        print (f'%% Group {g_id} --> top={top}', file=self._output)
 
         g_style = elem.get('style')
         if g_style is not None:
-            self.log("TODO: process global style '{}' in group".format(g_style))
+            self.log(f'TODO: process global style "{g_style}" in group')
 
         xlate = {
             'g':       lambda e: self.process_g(e),
@@ -728,16 +727,19 @@ Throws exception when no solutions are found, else returns the two points.
         }
 
         # print ('process_g(%s)' % elem.tag,file=sys.stderr)
-
+        __slide = 1
         for child in elem:
             # print (' &&& -> %s' % child.tag,file=sys.stderr)
             tag = self.namedTagRe.match(child.tag).group(3)
-            for x in xlate:
-                if tag == x:
-                    transform = self.transform2scope(child)
-                    xlate[x](child)
-                    if transform: print ('\\end{scope}',file=self._output)
-                    break
+            if tag in xlate:
+                if top and self._multi:
+                    print(f'\\onslide<{__slide}->{{%', file=self._output)
+                transform = self.transform2scope(child)
+                xlate[tag](child)
+                if transform: print ('\\end{scope}', file=self._output)
+                if top and self._multi:
+                    print('}', file=self._output)
+                    __slide += 1
             else:
                 self.log ('WARNING: <%s ../> not processed' % tag)
         if g_style is not None:
@@ -788,7 +790,7 @@ Throws exception when no solutions are found, else returns the two points.
         for elem in svg.xpath('//svg:svg/svg:g',namespaces=self._nsmap):
             if len(elem) > 0:
                 transform = self.transform2scope(elem)
-                self.process_g(elem)
+                self.process_g(elem, top=True)
                 if transform: print ('\\end{scope}',file=self._output)
         print ('\\end{tikzpicture}',file=self._output)
 
@@ -850,11 +852,12 @@ def main():
         if args.standalone:
             print('*** svg2tikz.py: cannot generate multi-slide standalone beamers', file=sys.stderr)
             raise SystemExit
-    print(" >> WARNING: --multi not implemented yet!", file=sys.stderr)
+        # print(" >> WARNING: --multi not implemented yet!", file=sys.stderr)
 
     processor = TiKZMaker(sys.stdout if args.output is None else codecs.open(args.output,'w',args.code),
                           debug=args.debug,
                           dpi=args.dpi,
+                          multi=args.multi,
                           round=args.round)
     processor.log (' %s --> %s ' % (args.infile,args.output))
     try:
