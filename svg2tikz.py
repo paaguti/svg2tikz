@@ -682,8 +682,12 @@ Throws exception when no solutions are found, else returns the two points.
             'scale':      lambda xform,nums: self.transformScale(xform, nums),
         }
 
-        transform = elem.xpath('string(.//@transform)')
-        if transform == '': return False
+        #
+        # This is the way to get the right attributes!
+        #
+        transform = elem.attrib.get('transform')
+        if transform is None: return False
+
         self.log ('transform2scope(%s)' % transform,verbose=2)
         m = TiKZMaker.transformRe.match(transform)
         self.log (m.groups(),verbose=2)
