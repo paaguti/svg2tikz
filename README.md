@@ -7,25 +7,42 @@ Usage
 -----
 
 ```
-python svg2tikz <flags> infile.svg
+python3 svg2tikz.py
 
-  -s,--standalone:      generate a standalone document
-  -o,--output <file>:   print to file (default: stdout)
-  -a,--auto:            auto-generate TeX file name
-  -d,--debug:           include debug messages
-  -h,--help:            print help message
+A program to generate TiKZ code from inkscape-generated SVGs
+Future plans include generalising to SVG without depending on Inkscape
+
+positional arguments:
+  INFILE                Input file
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+  -d, --debug           Enable debugging messages (repeat for more messages)
+  -a, --auto            Create output name from source
+  -o OUTPUT, --output OUTPUT
+                        Write to file(default is stdout)
+  -b BORDER, --border BORDER
+                        Set standalone border (default:1mm)
+  -r DPI, --dpi DPI     Resolution (assume 72dpi)
+  -R, --round           Round numbers to the nearest integer (default is 1
+                        decimal)
+  -M, --multi           Make a multi-slide LaTEX file
+  -s, --standalone      Make a standalone LaTEX file
+  -X XFORM, --xform XFORM
+                        transformation applied to the SVG code (default:
+                        yscale=-1)
+  --code CODE           Output file coding
 ```
 
-This little script converts SVG to TiKZ drawings. In standalone mode, the result can then be converted to PDF using pdflatex (see Makefile). Otherwise, the result is a TeX file that is included into LaTEX documents (using the ```\input{}``` command)
+This script converts SVG to TiKZ drawings. In standalone mode, the result can then be converted to PDF using pdflatex (see Makefile). Otherwise, the result is a TeX file that is included into LaTEX documents (using the ```\input{}``` command)
 
 _MAIN SCOPE_: The main scope of this script is files generated with *Inkscape*. I will make my best to parse other SVGs
 
 TODO:
 
-*  Bezier:
-  * check Bezier control points (2nd control point in Cubic curves)
-  * ```\node[rotate=<angle>] at (<x>,<y>){text}```
-  * ```\node[colour] at (<x>,<y>){text}```
+*  arcs:
+  * Better support for rotation
 
 Dependencies:
 
