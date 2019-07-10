@@ -49,7 +49,9 @@ In order to create an animation from an Inkscape file
 4. Add ```--multi``` when calling svg2tikz
 5. In your Beamer presentation, ```\input{generated_tikz}```
 
-Limitations: Multi-slide standalone TiKZ files are not supported
+*Example*: ```make multi``` will convert `mount-ns.svg` and compile `test-multi.tex` to create a multi-slide presentation
+
+**Limitations**: Multi-slide standalone TiKZ files are not supported.
 
 TODO
 ----
