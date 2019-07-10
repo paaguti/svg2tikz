@@ -39,8 +39,20 @@ This script converts SVG to TiKZ drawings. In standalone mode, the result can th
 
 _MAIN SCOPE_: The main scope of this script is files generated with *Inkscape*. I will make my best to parse other SVGs
 
-TODO:
+Multi slide HOWTO
+-----------------
 
+In order to create an animation from an Inkscape file
+1. Create an inkscape figure. 
+2. Group objects you want to appear on each slide incrementally
+3. Using the XML Editor in Inkscape, order the groups by order of appearance
+4. Add ```--multi``` when calling svg2tikz
+5. In your Beamer presentation, ```\input{generated_tikz}```
+
+Limitations: Multi-slide standalone TiKZ files are not supported
+
+TODO
+----
 *  arcs:
   * Better support for rotation
 
