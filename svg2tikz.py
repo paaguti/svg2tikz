@@ -836,6 +836,10 @@ def main():
                         dest='standalone',
                         action = 'store_true',
                         help='Make a standalone LaTEX file')
+    parser.add_argument('-S','--scale',
+                        dest='scale',
+                        type=float, default=1,
+                        help='Scale factor for resulting image (default=1)')
     parser.add_argument('-X','--xform',
                         dest='xform',
                         type=str, default='yscale=-1',
@@ -856,7 +860,12 @@ def main():
         if args.standalone:
             print('*** svg2tikz.py: cannot generate multi-slide standalone beamers', file=sys.stderr)
             raise SystemExit
-        # print(" >> WARNING: --multi not implemented yet!", file=sys.stderr)
+
+    out_xform = args.xform
+    if out_xform == 'yscale=-1':
+        if args.scale != 1.0:
+            out_xform=f'xscale={args.scale:.2f},yscale={-args.scale:.2f}'
+        print(f' Using global transform {out_xform}')
 
     processor = TiKZMaker(sys.stdout if args.output is None else codecs.open(args.output,'w',args.code),
                           debug=args.debug,
@@ -868,9 +877,9 @@ def main():
         tree = etree.parse(args.infile)
 
         if args.standalone:
-            processor.mkStandaloneTikz(tree, xform=args.xform, border=args.border)
+            processor.mkStandaloneTikz(tree, xform=out_xform, border=args.border)
         else:
-            processor.mkTikz(tree, xform=args.xform)
+            processor.mkTikz(tree, xform=out_xform)
     except IndexError:
         parser.print_help()
 
