@@ -549,6 +549,7 @@ Throws exception when no solutions are found, else returns the two points.
             # print(f'%% point=({self._lastx:.1f},{self._lasty:.1f})', file=self._output)
         print (';',file=self._output)
 
+    # Escape characters to make them print correctly
     escapes = {
         '&': '\\&',
         '#': '\\#',
@@ -771,9 +772,22 @@ Throws exception when no solutions are found, else returns the two points.
         print ('\\end{document}', file=self._output)
 
     def mkTikz(self,svg,xform='yscale=-1'):
+
         self._nsmap = { k:v for k,v in iter(svg.getroot().nsmap.items()) if k is not None }
         self._nsmap['svg'] = 'http://www.w3.org/2000/svg'
         self.log (repr(self._nsmap),verbose=2)
+
+        svg_groups = svg.xpath('//svg:svg/svg:g',namespaces=self._nsmap)
+        if self._multi == 1 and len(svg_groups) > 1:
+            self.log(f'ERROR: Trying to make multi-slide TiKZ from SVG with {len(svg_groups)} object groups!')
+            self.log('       Group them into a single object group!')
+            if not self._output.isatty():
+                import os
+                _fname = self._output.name
+                self._output.close()
+                os.remove(_fname)
+                self.log(f'       Removing empty output file `{_fname}`')
+            sys.exit(1)
 
         self._symbols = svg.xpath('//svg:symbol',namespaces=self._nsmap)
         self.log ('Getting symbols with XPATH',verbose=2)
@@ -802,7 +816,7 @@ Throws exception when no solutions are found, else returns the two points.
             print('\\useasboundingbox(0,0) rectangle ({},{});'.format(self.str2u(width),
                                                                       self.str2u(height)),file=self._output)
 
-        for elem in svg.xpath('//svg:svg/svg:g',namespaces=self._nsmap):
+        for elem in svg_groups:
             if len(elem) > 0:
                 transform = self.transform2scope(elem)
                 self.process_g(elem, top=True)
