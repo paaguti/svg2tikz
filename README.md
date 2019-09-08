@@ -43,9 +43,20 @@ Multi slide HOWTO
 -----------------
 
 In order to create an animation from an Inkscape file
+
 1. Create an inkscape figure. 
-2. Group objects you want to appear on each slide incrementally
+2. Group objects you want to appear on each slide incrementally 
 3. Using the XML Editor in Inkscape, order the groups by order of appearance
+4. Group all pages in one object. The structure should look like 
+
+```<svg>
+ +-<defs>
+ +-<g>
+    +-<g>
+    +-<g>
+     ...
+```
+    
 4. Add ```--multi``` when calling svg2tikz
 5. In your Beamer presentation, ```\input{generated_tikz}```
 

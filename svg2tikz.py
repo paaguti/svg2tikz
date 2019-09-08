@@ -549,6 +549,16 @@ Throws exception when no solutions are found, else returns the two points.
             # print(f'%% point=({self._lastx:.1f},{self._lasty:.1f})', file=self._output)
         print (';',file=self._output)
 
+    escapes = {
+        '&': '\\&',
+        '#': '\\#',
+    }
+    def escape_text(self, txt):
+        result = txt
+        for k,v in TiKZMaker.escapes.items():
+            result = result.replace(k,v)
+        return result
+
     def process_tspan(self,txt,x,y,_id,stdict={}):
         __id__ = _id
         def dict2style(styledict={},cdefs=[]):
@@ -613,7 +623,8 @@ Throws exception when no solutions are found, else returns the two points.
 
         # txt = elem.text
         s,c = dict2style(stdict)
-        TiKZMaker.output('\n'.join(c),'\\node %s at %s { %s };' % (s,self.pt2str(x,y),txt),file=self._output)
+        TiKZMaker.output('\n'.join(c),'\\node %s at %s { %s };' % (s,self.pt2str(x,y),self.escape_text(txt)),
+                         file=self._output)
 
     def process_text(self,elem):
         def style2dict(st,styledict = {}):
@@ -802,7 +813,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter,epilog='')
-    parser.add_argument('--version', action='version', version='%(prog)s 3.1 070919')
+    parser.add_argument('--version', action='version', version='%(prog)s 3.2 190908')
     parser.add_argument('-d','--debug',
                         dest='debug',
                         action = 'count',
