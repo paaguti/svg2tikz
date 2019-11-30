@@ -43,6 +43,7 @@ class TiKZMaker(object):
         self._dpi        = dpi
         self._round      = round
         self._multi      = multi
+        self._scope_stack = []
 
         self.log('Debugging!',verbose=2)
 
@@ -55,6 +56,28 @@ class TiKZMaker(object):
         if len(colordef) > 0:
             print (colordef,file=file)
         print (strmsg,file=file)
+
+    def manage_scope(self,newscope=None,debug=True,ofile=sys.stderr):
+        if newscope is None:
+            print ('\\end{scope}',file=ofile)
+            if len(self._scope_stack) != 0:
+                self._scope_stack.pop()
+        else:
+            print ('\\begin{}[{}]'.format('{scope}',','.join(newscope)),file=ofile)
+            self._scope_stack.append(newscope)
+        if debug:
+            self.log("  SCOPE_STACK", end=': ', verbose=1)
+            self.log(self._scope_stack, verbose=1)
+
+    def mkshift(self,x=None,y=None):
+        self.log( f'MKSHIFT x={x} y={y}')
+        if x is not None and y is not None:
+            return f'shift={{{self.pt2str(x,y)}}}'
+        if x is not None:
+            return f'xshift={self.str2u(x)}'
+        if y is not None:
+            return f'yshift={self.str2u(y)}'
+        return None
 
     str2uRe   = re.compile(floatSpec+r'([a-z]{2})?')
 
@@ -471,9 +494,9 @@ Throws exception when no solutions are found, else returns the two points.
         assert href is not None, 'use does not reference a symbol' % href
         assert href[0] == '#', 'Only local hrefs allowed for symbols (%s)' % href
 
-        try:
-            print ('\\begin{scope}[shift={%s}]' % (self.pt2str(x,y)),file=self._output)
-        except: pass
+        this_shift = self.mkshift(x,y)
+        if this_shift is not None:
+            self.manage_scope(this_shift, file=self._output)
 
         for s in self._symbols:
             if href[1:] == s.get('id'):
@@ -482,8 +505,8 @@ Throws exception when no solutions are found, else returns the two points.
         else:
             self.log ("ERROR: didn't find referenced symbol '%s'" % href[1:])
 
-        if x is not None and y is not None:
-            print ('\\end{scope}',file=self._output)
+        if this_shift is not None:
+            self.manage_scope(None, ofile=self._output)
 
     def sodipodi_arc(self,cdefs,style,elem):
         rx    = float(elem.xpath('string(.//@sodipodi:rx)' ,namespaces=self._nsmap))
@@ -659,9 +682,12 @@ Throws exception when no solutions are found, else returns the two points.
 
 
     def transformTranslate(self, xform, nums):
-        xform.append('shift={(%s,%s)}' %
-                     (self.str2u(nums[0]),
-                      self.str2u(nums[1] if len(nums)>1 else '0')))
+        # xform.append(
+        #     'shift={(%s,%s)}' %
+        #              (self.str2u(nums[0]),
+        #               self.str2u(nums[1] if len(nums)>1 else '0')))
+        xform.append(self.mkshift(x=nums[0], y=nums[1] if len(nums)> 1 else None))
+        self.log(self.mkshift(x=nums[0], y=nums[1] if len(nums)> 1 else None))
         return xform
 
     def transformRotate(self, xform, nums):
