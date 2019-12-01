@@ -71,8 +71,21 @@ class TiKZMaker(object):
 
     def mkshift(self,x=None,y=None):
         self.log( f'MKSHIFT x={x} y={y}')
+
         if x is not None and y is not None:
-            return f'shift={{{self.pt2str(x,y)}}}'
+            xval = None
+            try:
+                xval = float(x)
+            except: None
+            yval = None
+            try:
+                yval = float(y)
+            except: None
+            if abs(xval) >= 0.1 and abs(yval) >= 0.1:
+                return f'shift={{{self.pt2str(x,y)}}}'
+            if abs(xval) >= 0.1:
+                return f'xshift={self.str2u(x)}'
+            return f'yshift={self.str2u(y)}'
         if x is not None:
             return f'xshift={self.str2u(x)}'
         if y is not None:
