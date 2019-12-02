@@ -226,14 +226,18 @@ Throws exception when no solutions are found, else returns the two points.
         return result
 
     def style2colour(self,style,xtra=None):
+        #
+        # TODO: dashed versus dotted
+        #
         self.log('style2colour(%s)' % style,end=' = ',verbose=2)
         cdef  = []
         stdef =[]
         if xtra is not None: stdef.append(xtra)
         s2cDict = {
-            'stroke':         lambda c: 'draw=' + self.hex2colour(c,cname='dc',cdef=cdef),
-            'fill':           lambda c: 'fill=' + self.hex2colour(c,cname='fc',cdef=cdef),
-            'stroke-width':   lambda c: 'line width=' + self.str2u(c, do_round=False),
+            'stroke':           lambda c: 'draw=' + self.hex2colour(c,cname='dc',cdef=cdef),
+            'fill':             lambda c: 'fill=' + self.hex2colour(c,cname='fc',cdef=cdef),
+            'stroke-width':     lambda c: 'line width=' + self.str2u(c, do_round=False),
+            'stroke-dasharray': lambda c: None if c == 'none' else 'dashed',
         }
         for s in style.split(';'):
             m,c = s.split(':')
@@ -241,6 +245,8 @@ Throws exception when no solutions are found, else returns the two points.
             if m in s2cDict:
                 self.log("Found '%s'" % m,verbose=2)
                 stdef.append(s2cDict[m](c))
+                if stdef[-1]  is None:
+                    stdef.pop()
         result = '[%s]' % ','.join(stdef) if len(stdef) > 0 else '', '\n'.join(cdef)
         self.log('Returns %s' % repr(result), verbose=2)
         return result
