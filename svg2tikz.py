@@ -225,14 +225,15 @@ Throws exception when no solutions are found, else returns the two points.
         self.log(result,verbose=2)
         return result
 
-    def style2colour(self,style):
+    def style2colour(self,style,xtra=None):
         self.log('style2colour(%s)' % style,end=' = ',verbose=2)
-        stdef = []
         cdef  = []
+        stdef =[]
+        if xtra is not None: stdef.append(xtra)
         s2cDict = {
-            'stroke':       lambda c: 'draw=' + self.hex2colour(c,cname='dc',cdef=cdef),
-            'fill':         lambda c: 'fill=' + self.hex2colour(c,cname='fc',cdef=cdef),
-            'stroke-width': lambda c: 'line width=' + self.str2u(c, do_round=False)
+            'stroke':         lambda c: 'draw=' + self.hex2colour(c,cname='dc',cdef=cdef),
+            'fill':           lambda c: 'fill=' + self.hex2colour(c,cname='fc',cdef=cdef),
+            'stroke-width':   lambda c: 'line width=' + self.str2u(c, do_round=False),
         }
         for s in style.split(';'):
             m,c = s.split(':')
@@ -240,7 +241,6 @@ Throws exception when no solutions are found, else returns the two points.
             if m in s2cDict:
                 self.log("Found '%s'" % m,verbose=2)
                 stdef.append(s2cDict[m](c))
-
         result = '[%s]' % ','.join(stdef) if len(stdef) > 0 else '', '\n'.join(cdef)
         self.log('Returns %s' % repr(result), verbose=2)
         return result
@@ -249,8 +249,14 @@ Throws exception when no solutions are found, else returns the two points.
         self.log ('***\n** rectangle\n***',verbose=2)
         x,y   = self.get_loc(elem)
         w,h   = self.get_dim(elem)
+        ry    = elem.xpath('string(.//@ry)')
+        self.log(f'***\n** ry={ry}\n***',verbose=2)
         try:
-            style,cdefs = self.style2colour(elem.attrib['style'])
+            if len(ry) > 0 and float(ry) > 0:
+                style,cdefs = self.style2colour(elem.attrib['style'],xtra='rounded corners')
+            else:
+                style,cdefs = self.style2colour(elem.attrib['style'])
+
             self.log(f'Result: style={style}\ncdefs={cdefs}', verbose=2)
         except:
             style = ''
