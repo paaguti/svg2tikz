@@ -259,12 +259,15 @@ Throws exception when no solutions are found, else returns the two points.
                 if m == 'stroke-width':
                     try:
                         stwidth = self.str2u(extra)
-                        print (f'>>> Setting stwidth to {stwidth}')
+                        self.log(f'>>> Setting stwidth to {stwidth}', verbose=2)
                     except: pass
                 elif m == 'stroke-dasharray':
                     self.log(f' >> stroke-dasharray: decode `{extra}`',verbose=2)
                     # TODO: detect when the dashlen == stwidth to change style to dotted
-                    if False:
+                    dashspec = extra.split(',')
+                    dashlen = self.str2u(dashspec[0])
+                    self.log(f' >>> first dash length: {dashlen} -> w {stwidth}')
+                    if stwidth == dashlen:
                         stdef.pop()
                         stdef.append('dotted')
         result = '[%s]' % ','.join(stdef) if len(stdef) > 0 else '', '\n'.join(cdef)
