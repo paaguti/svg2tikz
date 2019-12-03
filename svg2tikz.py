@@ -231,22 +231,42 @@ Throws exception when no solutions are found, else returns the two points.
         #
         self.log('style2colour(%s)' % style,end=' = ',verbose=2)
         cdef  = []
-        stdef =[]
+        stdef = []
+        stwidth = None
         if xtra is not None: stdef.append(xtra)
+        #
+        # Return (spec, val) if you need postprocessing or
+        # (spec, None) if you don't
+        #
         s2cDict = {
-            'stroke':           lambda c: 'draw=' + self.hex2colour(c,cname='dc',cdef=cdef),
-            'fill':             lambda c: 'fill=' + self.hex2colour(c,cname='fc',cdef=cdef),
-            'stroke-width':     lambda c: 'line width=' + self.str2u(c, do_round=False),
-            'stroke-dasharray': lambda c: None if c == 'none' else 'dashed',
+            'stroke':           lambda c: ('draw=' + self.hex2colour(c,cname='dc',cdef=cdef), None),
+            'fill':             lambda c: ('fill=' + self.hex2colour(c,cname='fc',cdef=cdef), None),
+            'stroke-width':     lambda c: ('line width=' + self.str2u(c, do_round=False),     c),
+            'stroke-dasharray': lambda c: (None if c == 'none' else 'dashed',                 c),
         }
         for s in style.split(';'):
             m,c = s.split(':')
-            self.log ("Processing '%s=%s'" % (m,c),verbose=2)
+            self.log (f"Processing '{m}={c}'",verbose=2)
             if m in s2cDict:
-                self.log("Found '%s'" % m,verbose=2)
-                stdef.append(s2cDict[m](c))
+                self.log(f"Found '{m}'" ,verbose=2)
+                sdeflist = s2cDict[m](c)
+                self.log(f'>>> sdeflist: {sdeflist}',verbose=2)
+                sdef = sdeflist[0]
+                extra = sdeflist[1]
+                stdef.append(sdef)
                 if stdef[-1]  is None:
                     stdef.pop()
+                if m == 'stroke-width':
+                    try:
+                        stwidth = self.str2u(extra)
+                        print (f'>>> Setting stwidth to {stwidth}')
+                    except: pass
+                elif m == 'stroke-dasharray':
+                    self.log(f' >> stroke-dasharray: decode `{extra}`',verbose=2)
+                    # TODO: detect when the dashlen == stwidth to change style to dotted
+                    if False:
+                        stdef.pop()
+                        stdef.append('dotted')
         result = '[%s]' % ','.join(stdef) if len(stdef) > 0 else '', '\n'.join(cdef)
         self.log('Returns %s' % repr(result), verbose=2)
         return result
