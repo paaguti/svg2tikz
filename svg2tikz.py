@@ -6,6 +6,7 @@ Future plans include generalising to SVG without depending on Inkscape
 # released under LGPL 3.0
 # see LICENSE
 
+# version 3.3: implement dotted versus dashed lines
 
 from lxml import etree
 import sys
@@ -13,6 +14,7 @@ import re
 import codecs
 import math
 import argparse
+import logging
 
 class TiKZMaker(object):
     _output     = None
@@ -186,12 +188,12 @@ Throws exception when no solutions are found, else returns the two points.
         return float(elem.xpath('string(.//@width)')),float(elem.xpath('string(.//@height)'))
 
     def hex2rgb(self,colour):
-        self.log('hex2rgb(%s)' % colour,verbose=2)
+        self.log(f'hex2rgb({colour})',verbose=2)
         if colour.lower() == 'none': return 'none'
         r = int('0x'+colour[1:3],0)
         g = int('0x'+colour[3:5],0)
         b = int('0x'+colour[5:],0)
-        return '{RGB}{%d,%d,%d}' % (r,g,b)
+        return f'{{RGB}}{{{r},{g},{b}}}'
 
     rgbSpecRe = re.compile('rgb\((\d+%?),(\d+%?),(\d+%?)\)')
     def rgb2colour(self,colour):
@@ -220,16 +222,17 @@ Throws exception when no solutions are found, else returns the two points.
             result = d[col]
         except:
             if cname is not None:
-                cdef.append('\\definecolor{%s}%s' % (cname,rgb))
+                cdef.append(f'\\definecolor{{{cname}}}{rgb}')
                 result = cname
-        self.log(result,verbose=2)
+        self.log(f'returning {result}',verbose=2)
+        self.log(f'and cdef={cdef}',verbose=2)
         return result
 
     def style2colour(self,style,xtra=None):
         #
         # TODO: dashed versus dotted
         #
-        self.log('style2colour(%s)' % style,end=' = ',verbose=2)
+        self.log(f'style2colour({style})', end=' = ', verbose=2)
         cdef  = []
         stdef = []
         stwidth = None
@@ -251,11 +254,14 @@ Throws exception when no solutions are found, else returns the two points.
                 self.log(f"Found '{m}'" ,verbose=2)
                 sdeflist = s2cDict[m](c)
                 self.log(f'>>> sdeflist: {sdeflist}',verbose=2)
+                self.log(f'>>> cdef: {cdef}', verbose=2)
                 sdef = sdeflist[0]
-                extra = sdeflist[1]
                 stdef.append(sdef)
+                if sdeflist[1] is None:
+                    continue
                 if stdef[-1]  is None:
                     stdef.pop()
+                extra = sdeflist[1]
                 if m == 'stroke-width':
                     try:
                         stwidth = self.str2u(extra)
@@ -263,6 +269,7 @@ Throws exception when no solutions are found, else returns the two points.
                     except: pass
                 elif m == 'stroke-dasharray':
                     self.log(f' >> stroke-dasharray: decode `{extra}`',verbose=2)
+                    if extra == 'none': continue
                     # TODO: detect when the dashlen == stwidth to change style to dotted
                     dashspec = extra.split(',')
                     dashlen = self.str2u(dashspec[0])
@@ -270,7 +277,7 @@ Throws exception when no solutions are found, else returns the two points.
                     if stwidth == dashlen:
                         stdef.pop()
                         stdef.append('dotted')
-        result = '[%s]' % ','.join(stdef) if len(stdef) > 0 else '', '\n'.join(cdef)
+        result = '[%s]' % ','.join(stdef) if len(stdef) > 0 else '', '\n'.join(cdef) if len(cdef)>0 else ''
         self.log('Returns %s' % repr(result), verbose=2)
         return result
 
@@ -295,19 +302,23 @@ Throws exception when no solutions are found, else returns the two points.
                          file=self._output)
 
     def process_circle(self,elem):
+        self.log('***\n** circle\n***',verbose=2)
         x    = float(elem.get('cx'))
         y    = float(elem.get('cy'))
         r    = float(elem.get('r'))
         try:
             style,cdefs = self.style2colour(elem.attrib['style'])
+            self.log(f'** circle -> ({style},{cdefs})', verbose=2)
         except:
             style = ''
             cdefs = ''
+            self.log(logging.traceback.format_exc())
         TiKZMaker.output(cdefs,
-                         '\\draw %s %s circle (%s) ;' % (style,self.pt2str(x,y),self.str2u(r)),
+                         '\\draw %s %s circle (%s);' % (style,self.pt2str(x,y),self.str2u(r)),
                          file=self._output)
 
     def process_ellipse(self,elem):
+        self.log('***\n** ellipse\n***',verbose=2)
         x    = float(elem.get('cx'))
         y    = float(elem.get('cy'))
         rx   = float(elem.get('rx'))
@@ -318,6 +329,7 @@ Throws exception when no solutions are found, else returns the two points.
         except:
             style = ''
             cdefs = ''
+            self.log(logging.traceback.format_exc())
         TiKZMaker.output(cdefs,
                          '\\draw %s %s ellipse %s ;' % (style,self.pt2str(x,y),self.pt2str(rx,ry,' and ')),
                          file=self._output)
@@ -901,7 +913,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter,epilog='')
-    parser.add_argument('--version', action='version', version='%(prog)s 3.2 190908')
+    parser.add_argument('--version', action='version', version='%(prog)s 3.3 191294')
     parser.add_argument('-d','--debug',
                         dest='debug',
                         action = 'count',
