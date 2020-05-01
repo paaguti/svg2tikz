@@ -7,6 +7,8 @@ Future plans include generalising to SVG without depending on Inkscape
 # see LICENSE
 
 # version 3.3: implement dotted versus dashed lines
+# version 3.4: improve scaling by including the node text
+__version__ = '3.4 200429'
 
 from lxml import etree
 import sys
@@ -913,7 +915,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter,epilog='')
-    parser.add_argument('--version', action='version', version='%(prog)s 3.3 191294')
+    parser.add_argument('--version', action='version', version=f'%(prog)s v{__version__}')
     parser.add_argument('-d','--debug',
                         dest='debug',
                         action = 'count',
@@ -975,7 +977,7 @@ def main():
     out_xform = args.xform
     if out_xform == 'yscale=-1':
         if args.scale != 1.0:
-            out_xform=f'xscale={args.scale:.2f},yscale={-args.scale:.2f}'
+            out_xform=f'xscale={args.scale:.2f},yscale={-args.scale:.2f},every node/.style={{scale={args.scale:.2f}}}'
         print(f' Using global transform {out_xform}')
 
     processor = TiKZMaker(sys.stdout if args.output is None else codecs.open(args.output,'w',args.code),
