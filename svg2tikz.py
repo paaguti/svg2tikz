@@ -8,7 +8,9 @@ Future plans include generalising to SVG without depending on Inkscape
 
 # version 3.3: implement dotted versus dashed lines
 # version 3.4: improve scaling by including the node text
-__version__ = '3.4 200429'
+# version 3.5: signal empty tspans and don't die
+#              fix colour treatment in process_tspan
+__version__ = '3.5 200514'
 
 from lxml import etree
 import sys
@@ -74,7 +76,7 @@ class TiKZMaker(object):
             self.log(self._scope_stack, verbose=1)
 
     def mkshift(self,x=None,y=None):
-        self.log( f'MKSHIFT x={x} y={y}')
+        self.log( f'MKSHIFT x={x} y={y}', verbose=2)
 
         if x is not None and y is not None:
             xval = None
@@ -220,14 +222,14 @@ Throws exception when no solutions are found, else returns the two points.
              '#00ffff' : 'cyan',
              '#ff00ff' : 'magenta',
              '#ffffff' : 'white' }
-        try :
+        if col in d:
             result = d[col]
-        except:
+        else:
+            self.log(f'cname={cname}, rgb={rgb}', verbose=2)
             if cname is not None:
                 cdef.append(f'\\definecolor{{{cname}}}{rgb}')
                 result = cname
-        self.log(f'returning {result}',verbose=2)
-        self.log(f'and cdef={cdef}',verbose=2)
+        self.log(f'returning {result} and cdef={cdef}',verbose=2)
         return result
 
     def style2colour(self,style,xtra=None):
@@ -546,10 +548,10 @@ Throws exception when no solutions are found, else returns the two points.
         y = None
         self.log(']>]>  '+elem.xpath('string(.//@href)',namespaces = self._nsmap))
         for n in elem.attrib:
-            print (n)
+            self.log (n, verbose=2)
 
             if re.search(r'({[^}]+})?href',n):
-                if debug: print ('reference to %s' % elem.get(n))
+                self.log ('reference to %s' % elem.get(n), verbose=2)
                 href = elem.get(n)
             if n == 'x': x=float(elem.get(n))
             if n == 'y': y=float(elem.get(n))
@@ -677,7 +679,7 @@ Throws exception when no solutions are found, else returns the two points.
             def mkFSize(style):
                 try:
                     size = 0.0
-                    print ('**TODO refine mkFSize(%s)' % style,verbose=2)
+                    self.log ('**TODO refine mkFSize(%s)' % style,verbose=2)
                     val,_,_,unit = pxRe.match(style).groups()
                     fval = float(val)
                     for _min,_max,_result in [
@@ -692,13 +694,13 @@ Throws exception when no solutions are found, else returns the two points.
                 except:
                     return ''
             result = []
-            xlatestyle = {'fill' :        lambda s: self.hex2colour(s,cdefs),
+            xlatestyle = {'fill' :        lambda s: self.hex2colour(s,cname='fc',cdef=cdefs),
                           'font-family' : lambda s: mkFont(s),
                           'text-align':   lambda s: mkAlign(s),
                           'font-size' :   lambda s: mkFSize(s)
             }
 
-            result = [xlatestyle[x](styledict[x]) for x in xlatestyle if x in styledict]
+            result = [ xlatestyle[x](styledict[x]) for x in xlatestyle if x in styledict ]
             self.log(repr(result),end=' --> ',verbose=2)
             fspec = 'font=' + ''.join([f[5:] for f in result if f.startswith('font=')])
             result = [ r for r in result if len(r)>0 and not r.startswith('font=')]
@@ -708,9 +710,21 @@ Throws exception when no solutions are found, else returns the two points.
             return '' if len(result) == 0 else '[' + ','.join(result) + ']','\n'.join(cdefs)
 
         # txt = elem.text
+        if txt is None:
+            self.log("tspan id:{} with null text!".format(_id))
+            return
         s,c = dict2style(stdict)
-        TiKZMaker.output('\n'.join(c),'\\node %s at %s { %s };' % (s,self.pt2str(x,y),self.escape_text(txt)),
-                         file=self._output)
+        # print("dict2style({}) = (s={},c={})".format(stdict,s,c))
+        # print("node text = {}".format(txt))
+        if isinstance(c,str):
+            TiKZMaker.output(c,
+                             '\\node %s at %s { %s };' % (s,self.pt2str(x,y),self.escape_text(txt)),
+                             file=self._output)
+        else:
+            TiKZMaker.output('\n'.join(c),
+                             '\\node %s at %s { %s };' % (s,self.pt2str(x,y),self.escape_text(txt)),
+                             file=self._output)
+
 
     def process_text(self,elem):
         def style2dict(st,styledict = {}):
