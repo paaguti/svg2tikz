@@ -10,7 +10,9 @@ Future plans include generalising to SVG without depending on Inkscape
 # version 3.4: improve scaling by including the node text
 # version 3.5: signal empty tspans and don't die
 #              fix colour treatment in process_tspan
-__version__ = '3.5 200514'
+# version 3.6: detect marker-start and marker-end
+
+__version__ = '3.6 200515'
 
 from lxml import etree
 import sys
@@ -232,24 +234,34 @@ Throws exception when no solutions are found, else returns the two points.
         self.log(f'returning {result} and cdef={cdef}',verbose=2)
         return result
 
+    def arrowtips(self, current_val, new_tip):
+        if new_tip == '>':
+            return current_val + '>'
+        else:
+            return '<' + current_val
+
     def style2colour(self,style,xtra=None):
+        arrowtips='-'
         #
         # TODO: dashed versus dotted
         #
         self.log(f'style2colour({style})', end=' = ', verbose=2)
         cdef  = []
-        stdef = []
+        stdef = ['-']
         stwidth = None
         if xtra is not None: stdef.append(xtra)
         #
         # Return (spec, val) if you need postprocessing or
-        # (spec, None) if you don't
+        #        (spec, <n>) to replace a specific element in the spec_list
+        #        (spec, None) if you don't
         #
         s2cDict = {
             'stroke':           lambda c: ('draw=' + self.hex2colour(c,cname='dc',cdef=cdef), None),
             'fill':             lambda c: ('fill=' + self.hex2colour(c,cname='fc',cdef=cdef), None),
             'stroke-width':     lambda c: ('line width=' + self.str2u(c, do_round=False),     c),
             'stroke-dasharray': lambda c: (None if c == 'none' else 'dashed',                 c),
+            'marker-start':     lambda c: (self.arrowtips(arrowtips,'>'),                     0),
+            'marker-end':       lambda c: (self.arrowtips(arrowtips,'<'),                     0),
         }
         for s in style.split(';'):
             m,c = s.split(':')
@@ -260,6 +272,14 @@ Throws exception when no solutions are found, else returns the two points.
                 self.log(f'>>> sdeflist: {sdeflist}',verbose=2)
                 self.log(f'>>> cdef: {cdef}', verbose=2)
                 sdef = sdeflist[0]
+                #
+                # This is for the arrow tips
+                if isinstance(sdeflist[1], int):
+                    stdef[sdeflist[1]] = sdef
+                    if sdeflist[1] == 0:
+                        arrowtips = sdef
+                        self.log(f' <-> {arrowtips}', verbose=2)
+                    continue
                 stdef.append(sdef)
                 if sdeflist[1] is None:
                     continue
@@ -281,6 +301,8 @@ Throws exception when no solutions are found, else returns the two points.
                     if stwidth == dashlen:
                         stdef.pop()
                         stdef.append('dotted')
+        if stdef[0] == '-':
+            stdef.pop(0)
         result = '[%s]' % ','.join(stdef) if len(stdef) > 0 else '', '\n'.join(cdef) if len(cdef)>0 else ''
         self.log('Returns %s' % repr(result), verbose=2)
         return result
