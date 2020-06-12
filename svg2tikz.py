@@ -6,13 +6,14 @@ Future plans include generalising to SVG without depending on Inkscape
 # released under LGPL 3.0
 # see LICENSE
 
-# version 3.3: implement dotted versus dashed lines
-# version 3.4: improve scaling by including the node text
-# version 3.5: signal empty tspans and don't die
-#              fix colour treatment in process_tspan
-# version 3.6: detect marker-start and marker-end
-
-__version__ = '3.6 200515'
+# version 3.3:  implement dotted versus dashed lines
+# version 3.4:  improve scaling by including the node text
+# version 3.5:  signal empty tspans and don't die
+#               fix colour treatment in process_tspan
+# version 3.6:  detect marker-start and marker-end
+# version 3.6a: reworking tspan for multi-tspan <text> elements
+#               TODO: format substrings in a tspan
+__version__ = '3.6a 200612'
 
 from lxml import etree
 import sys
@@ -658,6 +659,66 @@ Throws exception when no solutions are found, else returns the two points.
             # print(f'%% point=({self._lastx:.1f},{self._lasty:.1f})', file=self._output)
         print (';',file=self._output)
 
+    def dict2style(self,styledict={},cdefs=[]):
+        def mkFont(fname):
+            try:
+                return 'font=' + {
+                        # 'serif' :      '',
+                        # 'Serif' :      '',
+                        'sans-serif' : '\\sffamily',
+                        'Sans' :       '\\sffamily',
+                }[fname]
+            except:
+                return 'font='
+
+        def mkAlign(style,id=None):
+            align_xlate = {
+                    'start':  'anchor=west',
+                    'center': 'align=center',
+                    'end':    'anchor=east'
+            }
+            try:
+                return align_xlate[style]
+            except:
+                self.log ('** Warning: ignored string alignment {}'.format(style),end='')
+                if __id__ is not None: self.log(' for element {}'.format(__id__),end='')
+                self.log ('!!')
+                return aling_xlate['center']
+
+        pxRe = re.compile(r'(-?\d+(\.\d+(e?[+-]?\d+)))([a-z]{2})?')
+        def mkFSize(style):
+            try:
+                size = 0.0
+                self.log ('**TODO refine mkFSize(%s)' % style,verbose=2)
+                val,_,_,unit = pxRe.match(style).groups()
+                fval = float(val)
+                for _min,_max,_result in [
+                        ( 0.0,  4.0, 'font=\\small'),
+                        ( 4.0,  6.0, ''),
+                        ( 6.0, 10.0, 'font=\\large'),
+                        (10.0, 1e06, 'font=\\LARGE')
+                ]:
+                    if _min <= fval and fval < _max:
+                        return _result
+                return ''
+            except:
+                return ''
+        result = []
+        xlatestyle = {'fill' :        lambda s: self.hex2colour(s,cname='fc',cdef=cdefs),
+                      'font-family' : lambda s: mkFont(s),
+                      'text-align':   lambda s: mkAlign(s),
+                      'font-size' :   lambda s: mkFSize(s)
+                      }
+
+        result = [ xlatestyle[x](styledict[x]) for x in xlatestyle if x in styledict ]
+        self.log(repr(result),end=' --> ',verbose=2)
+        fspec = 'font=' + ''.join([f[5:] for f in result if f.startswith('font=')])
+        result = [ r for r in result if len(r)>0 and not r.startswith('font=')]
+        if len(fspec) != 5: result.append(fspec)
+        self.log(repr(result),verbose=2)
+        # result = [r for r in result if r is not None and len(r)>0]
+        return '' if len(result) == 0 else '[' + ','.join(result) + ']','\n'.join(cdefs)
+
     # Escape characters to make them print correctly
     escapes = {
         '&': '\\&',
@@ -669,84 +730,41 @@ Throws exception when no solutions are found, else returns the two points.
             result = result.replace(k,v)
         return result
 
+    # get_all_text = etree.XPath('.//text()')
+    def process_tspan_elem(self, elem, oldx=-1, oldy=-1, oldstyles={}):
+        tspan_text = elem.xpath('.//text()')
+        elem_text = ''.join(tspan_text)
+        if 'x' in elem.attrib and 'y' in elem.attrib:
+            x, y = self.get_loc(elem)
+        else:
+            x, y = oldx, oldy
+        if len(tspan_text) > 1:
+            self.log('WARNING: multi-part tspan! elem-id = {}'.format(elem.get('id')))
+            self.log('TODO: subelement formats for: {}'.format(tspan_text))
+            # self.log(etree.tostring(elem, pretty_print=True))
+        s,c = self.dict2style(oldstyles)
+        TiKZMaker.output([],'%% tspan: {}'.format(elem.get('id')),
+                         file=self._output)
+        colordef = c if isinstance(c,str) else '\n'.join(c)
+        TiKZMaker.output(colordef,
+                         '\\node %s at %s { %s };' % (s,self.pt2str(x,y),self.escape_text(elem_text)),
+                         file=self._output)
+
+
     def process_tspan(self,txt,x,y,_id,stdict={}):
         __id__ = _id
-        def dict2style(styledict={},cdefs=[]):
-            def mkFont(fname):
-                try:
-                    return 'font=' + {
-                        # 'serif' :      '',
-                        # 'Serif' :      '',
-                        'sans-serif' : '\\sffamily',
-                        'Sans' :       '\\sffamily',
-                    }[fname]
-                except:
-                    return 'font='
-
-            def mkAlign(style,id=None):
-                align_xlate = {
-                    'start':  'anchor=west',
-                    'center': 'align=center',
-                    'end':    'anchor=east'
-                }
-                try:
-                    return align_xlate[style]
-                except:
-                    self.log ('** Warning: ignored string alignment {}'.format(style),end='')
-                    if __id__ is not None: self.log(' for element {}'.format(__id__),end='')
-                    self.log ('!!')
-                    return aling_xlate['center']
-
-            pxRe = re.compile(r'(-?\d+(\.\d+(e?[+-]?\d+)))([a-z]{2})?')
-            def mkFSize(style):
-                try:
-                    size = 0.0
-                    self.log ('**TODO refine mkFSize(%s)' % style,verbose=2)
-                    val,_,_,unit = pxRe.match(style).groups()
-                    fval = float(val)
-                    for _min,_max,_result in [
-                            ( 0.0,  4.0, 'font=\\small'),
-                            ( 4.0,  6.0, ''),
-                            ( 6.0, 10.0, 'font=\\large'),
-                            (10.0, 1e06, 'font=\\LARGE')
-                    ]:
-                        if _min <= fval and fval < _max:
-                            return _result
-                    return ''
-                except:
-                    return ''
-            result = []
-            xlatestyle = {'fill' :        lambda s: self.hex2colour(s,cname='fc',cdef=cdefs),
-                          'font-family' : lambda s: mkFont(s),
-                          'text-align':   lambda s: mkAlign(s),
-                          'font-size' :   lambda s: mkFSize(s)
-            }
-
-            result = [ xlatestyle[x](styledict[x]) for x in xlatestyle if x in styledict ]
-            self.log(repr(result),end=' --> ',verbose=2)
-            fspec = 'font=' + ''.join([f[5:] for f in result if f.startswith('font=')])
-            result = [ r for r in result if len(r)>0 and not r.startswith('font=')]
-            if len(fspec) != 5: result.append(fspec)
-            self.log(repr(result),verbose=2)
-            # result = [r for r in result if r is not None and len(r)>0]
-            return '' if len(result) == 0 else '[' + ','.join(result) + ']','\n'.join(cdefs)
 
         # txt = elem.text
         if txt is None:
             self.log("tspan id:{} with null text!".format(_id))
             return
-        s,c = dict2style(stdict)
+        s,c = self.dict2style(stdict)
         # print("dict2style({}) = (s={},c={})".format(stdict,s,c))
         # print("node text = {}".format(txt))
-        if isinstance(c,str):
-            TiKZMaker.output(c,
-                             '\\node %s at %s { %s };' % (s,self.pt2str(x,y),self.escape_text(txt)),
-                             file=self._output)
-        else:
-            TiKZMaker.output('\n'.join(c),
-                             '\\node %s at %s { %s };' % (s,self.pt2str(x,y),self.escape_text(txt)),
-                             file=self._output)
-
+        colordef = c if isinstance(c,str) else '\n'.join(c)
+        TiKZMaker.output(colordef,
+                         '\\node %s at %s { %s };' % (s,self.pt2str(x,y),self.escape_text(txt)),
+                         file=self._output)
 
     def process_text(self,elem):
         def style2dict(st,styledict = {}):
@@ -760,16 +778,10 @@ Throws exception when no solutions are found, else returns the two points.
         style = style2dict(elem.xpath('string(.//@style)',namespaces=self._nsmap))
         self.log ('text.x,y = %d,%d' % (x,y),verbose=2)
         if elem.text is None:
-            for tspan in elem.xpath('.//svg:tspan',namespaces=self._nsmap):
-                _style = style2dict(tspan.xpath('string(.//@style)',namespaces=self._nsmap),
-                                    dict(style))
-                try:
-                    _x,_y   = self.get_loc(tspan)
-                    self.log ('>> tspan.x,y = %d,%d' % (_x,_y),verbose=2)
-                except:
-                    _x,_y = x,y
-                self.process_tspan(tspan.text,_x,_y,_id,_style)
-                del _style
+            tspans = elem.xpath('./svg:tspan',namespaces=self._nsmap)
+            self.log('tspans in text: {}'.format(tspans))
+            for tspan in tspans:
+                self.process_tspan_elem(tspan,x,y,style)
         else:
             self.log (etree.tostring(elem,pretty_print=True))
             self.process_tspan(elem.text,x,y,_id,style)
