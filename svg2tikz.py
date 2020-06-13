@@ -13,7 +13,7 @@ Future plans include generalising to SVG without depending on Inkscape
 # version 3.6:  detect marker-start and marker-end
 # version 3.6a: reworking tspan for multi-tspan <text> elements
 #               TODO: format substrings in a tspan
-__version__ = '3.6a 200612'
+__version__ = '3.6a 200613'
 
 from lxml import etree
 import sys
@@ -61,9 +61,18 @@ class TiKZMaker(object):
             print (msg,end=end,file=sys.stderr)
 
     @staticmethod
-    def output(colordef,strmsg,file=sys.stdout):
-        if len(colordef) > 0:
-            print (colordef,file=file)
+    def output(colordef, strmsg, comment=None, file=sys.stdout):
+
+        if colordef is None:
+            cdef = []
+        elif isinstance(colordef,str):
+            cdef = [ colordef ]
+        else:
+            cdef = colordef
+        if comment is not None:
+            cdef.insert(0,f'%% << {comment}')
+        if len(cdef) > 0:
+            print ('\n'.join(cdef), end='', file=file)
         print (strmsg,file=file)
 
     def manage_scope(self,newscope=None,debug=True,ofile=sys.stderr):
@@ -182,11 +191,13 @@ Throws exception when no solutions are found, else returns the two points.
             # print (res,file=sys.stderr)
         return res
 
-    def get_loc(self,elem):
+    def get_loc(self,elem,oldx=None,oldy=None):
         # print (elem.tag,elem.attrib)
         # x = float(elem.attrib['x'])
         # y = float(elem.attrib['y'])
-        return float(elem.xpath('string(.//@x)')),float(elem.xpath('string(.//@y)'))
+        if 'x' in elem.attrib.keys() and 'y' in elem.attrib.keys():
+            return float(elem.xpath('string(.//@x)')),float(elem.xpath('string(.//@y)'))
+        return oldx, oldy
 
     def get_dim(self,elem):
         # print (elem.tag,elem.attrib)
@@ -399,23 +410,25 @@ Throws exception when no solutions are found, else returns the two points.
     def path_chop(self, d, first=True, last_spec='', incremental=True, style=None):
 
         def path_controls(inc,p1,p2,p3):
-            print ('.. controls %s%s and %s%s .. %s%s' % (inc,p1,inc,p2,inc,p3),
-                   file=self._output)
+            TiKZMaker.output(None,
+                             '.. controls %s%s and %s%s .. %s%s' % (inc,p1,inc,p2,inc,p3),
+                             file=self._output)
 
         def path_arc(inc,arc,lge,comment=False):
             x,y,alpha,beta,rx,ry = arc
-            print ('%s%s%s arc (%5.1f:%5.1f:%s and %s)' %
-                   ('%% ' if comment else '',
-                    inc,
-                    self.pt2str(x,y),
-                    alpha if lge else beta,
-                    beta  if lge else alpha,
-                    self.str2u(rx),self.str2u(rx)),file=self._output)
+            TiKZMaker.output(None,
+                             '%s%s%s arc (%5.1f:%5.1f:%s and %s)' %
+                             ('%% ' if comment else '',
+                              inc,
+                              self.pt2str(x,y),
+                              alpha if lge else beta,
+                              beta  if lge else alpha,
+                              self.str2u(rx),self.str2u(rx)),file=self._output)
 
 
         self.log (f'[{last_spec}] -->> {d}', verbose=2)
         if d[0].upper() == 'Z':
-            print ('-- cycle',file=self._output)
+            TiKZMaker.output(None,'-- cycle',file=self._output)
             self._lastx = self._startx
             self._lasty = self._starty
             return None, False, last_spec, incremental
@@ -453,7 +466,7 @@ Throws exception when no solutions are found, else returns the two points.
         pt = self.pt2str(x1,y1)
 
         if spec in ['l','L'] or spec is None:
-            print ('-- %s%s' % (inc,pt),file=self._output)
+            TiKZMaker.output (None, '-- %s%s' % (inc,pt), file=self._output)
             if spec == 'L':
                 self._lastx = x1
                 self._lasty = y1
@@ -468,7 +481,7 @@ Throws exception when no solutions are found, else returns the two points.
             else:
                 pt = self.pt2str(0,x)
                 self._lasty += x
-            print ('-- %s%s' % (inc,pt),file=self._output)
+            TiKZMaker.output (None, '-- %s%s' % (inc,pt), file=self._output)
         elif spec in ['H','V']:
             dim = float(m.group(2))
             if spec == 'H':
@@ -477,9 +490,10 @@ Throws exception when no solutions are found, else returns the two points.
             else:
                 pt = self.pt2str(self._lastx, dim)
                 self._lasty = dim
-            print ('-- %s%s' % (inc,pt),file=self._output)
+            TiKZMaker.output (None, '-- %s%s' % (inc,pt), file=self._output)
         elif spec in [ 'M','m']:
-            if not first: print(';',file=self._output)
+            if not first:
+                TiKZMaker.output (None, ';', file=self._output)
             if spec == 'M':
                 self._lastx = x1
                 self._lasty = y1
@@ -490,7 +504,7 @@ Throws exception when no solutions are found, else returns the two points.
             # This is the point for the next 'z' or 'Z'
             self._startx = self._lastx
             self._starty = self._lasty
-            print('\\draw %s %s%s' % (style,inc,pt),file=self._output)
+            TiKZMaker.output (None, '\\draw %s %s%s' % (style,inc,pt), file=self._output)
         elif spec in ['c', 'C']:
             pt2,rest,x2,y2 = self.dimChop(rest)
             pt3,rest,x3,y3 = self.dimChop(rest)
@@ -504,7 +518,7 @@ Throws exception when no solutions are found, else returns the two points.
                 pt2 = self.pt2str(x2-x3,y2-y3)
             else:
                 self.log ('** Warning: check controls',verbose=2)
-                print ('%%%% Warning: check controls',file=self._output)
+                TiKZMaker.output (None, '%%%% Warning: check controls', file=self._output)
             path_controls (inc,pt,pt2,pt3)
             if spec == 'C':
                 self._lastx = x3
@@ -519,8 +533,10 @@ Throws exception when no solutions are found, else returns the two points.
                 self._lastx = x2
                 self._lasty = y2
                 self.log ('%% Warning: ignoring (abs) Quadratic Bezier')
-                print ('%% This should be a quadratic Bezier with control point at %s' % pt,file=self._output)
-                print (' -- %s' % (pt2),file=self._output)
+                TiKZMaker.output (None,
+                                  f' -- {pt2}',
+                                  comment = f'%% This should be a quadratic Bezier with control point at {pt}',
+                                  file=self._output)
             else:
                 self._lastx += x2
                 self._lasty += y2
@@ -553,7 +569,7 @@ Throws exception when no solutions are found, else returns the two points.
 
             except Exception as e:
                 self.log("ERROR: <{}> Couldn't process spec: {} {:6.1f},{:6.1f} {} {} {} {:6.1f},{:6.1f}".format(e, spec, x1, y1, _xrot, _large, _swap, _x, _y))
-                print ("%%%% ERROR: Couldn't process spec: {} {:6.1f},{:6.1f} {} {} {} {} {:6.1f},{:6.1f}".format(spec, x1,y1,_xrot,_large,_swap,_x,_y), file=self._output)
+                TiKZMaker.output ("%%%%","%%%% ERROR: Couldn't process spec: {} {:6.1f},{:6.1f} {} {} {} {} {:6.1f},{:6.1f}".format(spec, x1,y1,_xrot,_large,_swap,_x,_y), file=self._output)
             if spec == 'A':
                 self._lastx = _x
                 self._lasty = _y
@@ -624,9 +640,9 @@ Throws exception when no solutions are found, else returns the two points.
         i = False
         try:
             pid = elem.attrib['id']
-            print (f'%% path id="{pid}"', file=self._output)
+            TiKZMaker.output (None, f'%% path id="{pid}"', file=self._output)
         except: pass
-        print (f'%% path spec="{d}"', file=self._output)
+        TiKZMaker.output (None, f'%% path spec="{d}"', file=self._output)
         try:
             _style = elem.attrib['style']
             self.log (f'%% From "{_style}"', verbose=2)
@@ -731,23 +747,20 @@ Throws exception when no solutions are found, else returns the two points.
         return result
 
     # get_all_text = etree.XPath('.//text()')
-    def process_tspan_elem(self, elem, oldx=-1, oldy=-1, oldstyles={}):
+    def process_tspan_elem(self, elem, oldx=None, oldy=None, oldstyles={}):
         tspan_text = elem.xpath('.//text()')
         elem_text = ''.join(tspan_text)
-        if 'x' in elem.attrib and 'y' in elem.attrib:
-            x, y = self.get_loc(elem)
-        else:
-            x, y = oldx, oldy
+        elem_id = elem.get('id')
+        x, y = self.get_loc(elem, oldx=oldx, oldy=oldy)
+        assert x is not None and y is not None, f'process_tspan_elem: unanchored tspan{elem_id}'
         if len(tspan_text) > 1:
-            self.log('WARNING: multi-part tspan! elem-id = {}'.format(elem.get('id')))
-            self.log('TODO: subelement formats for: {}'.format(tspan_text))
+            self.log(f'WARNING: multi-part tspan! elem-id = {elem_id}')
+            self.log(f'TODO: subelement formats for: {tspan_text}')
             # self.log(etree.tostring(elem, pretty_print=True))
         s,c = self.dict2style(oldstyles)
-        TiKZMaker.output([],'%% tspan: {}'.format(elem.get('id')),
-                         file=self._output)
-        colordef = c if isinstance(c,str) else '\n'.join(c)
-        TiKZMaker.output(colordef,
+        TiKZMaker.output(c,
                          '\\node %s at %s { %s };' % (s,self.pt2str(x,y),self.escape_text(elem_text)),
+                         comment = '%% tspan: {}'.format(elem.get('id')),
                          file=self._output)
 
 
@@ -761,9 +774,9 @@ Throws exception when no solutions are found, else returns the two points.
         s,c = self.dict2style(stdict)
         # print("dict2style({}) = (s={},c={})".format(stdict,s,c))
         # print("node text = {}".format(txt))
-        colordef = c if isinstance(c,str) else '\n'.join(c)
-        TiKZMaker.output(colordef,
+        TiKZMaker.output(c,
                          '\\node %s at %s { %s };' % (s,self.pt2str(x,y),self.escape_text(txt)),
+                         comment = '%% tspan: {}'.format(elem.get('id')),
                          file=self._output)
 
     def process_text(self,elem):
@@ -789,7 +802,6 @@ Throws exception when no solutions are found, else returns the two points.
 
     transformRe = re.compile(r'(translate|rotate|matrix|scale)\(([^)]+)\)')
     floatRe  = re.compile(floatSpec)
-
 
     def transformTranslate(self, xform, nums):
         # xform.append(
@@ -851,7 +863,7 @@ Throws exception when no solutions are found, else returns the two points.
             self.log('>>> transform2scope({}) ==> {}'.format(transform,repr(exc)))
         self.log('>>> transform2scope({}) = {}'.format(transform,repr(xform)),verbose=2)
         if len(xform) > 0:
-            print ('\\begin{scope}[%s]' % ','.join(xform),file=self._output)
+            TiKZMaker.output (None, '\\begin{scope}[%s]' % ','.join(xform),file=self._output)
             return True
         return False
 
@@ -862,7 +874,7 @@ Throws exception when no solutions are found, else returns the two points.
 
         g_id = elem.get('id')
         self.log(f'process_g: id={g_id}', verbose=2)
-        print (f'%% Group {g_id} --> top={top}', file=self._output)
+        TiKZMaker.output(None, f'%% Group {g_id} --> top={top}', file=self._output)
 
         g_style = elem.get('style')
         if g_style is not None:
@@ -885,27 +897,27 @@ Throws exception when no solutions are found, else returns the two points.
             tag = self.namedTagRe.match(child.tag).group(3)
             if tag in xlate:
                 if top and self._multi:
-                    print(f'\\onslide<{__slide}->{{%', file=self._output)
+                    TiKZMaker.output(None, f'\\onslide<{__slide}->{{%', file=self._output)
                 transform = self.transform2scope(child)
                 xlate[tag](child)
-                if transform: print ('\\end{scope}', file=self._output)
+                if transform: TiKZMaker.output (None, '\\end{scope}', file=self._output)
                 if top and self._multi:
-                    print('}', file=self._output)
+                    TiKZMaker.output (None, '}', file=self._output)
                     __slide += 1
             else:
-                self.log ('WARNING: <%s ../> not processed' % tag)
+                self.log (f'WARNING: <{tag} ../> not processed')
         if g_style is not None:
             pass # print ('\\end{scope}',file=self._output)
 
     def mkStandaloneTikz(self, svg, xform='yscale=-1', border='1mm'):
-        print (f'''\\documentclass[tikz,border={border}]{{standalone}}
-\\usepackage{{tikz}}
-\\usetikzlibrary{{shapes}}
-\\usepackage[utf8]{{inputenc}}
-\\makeatletter
-\\begin{{document}}''', file=self._output)
+        TiKZMaker.output ([f'\\documentclass[tikz,border={border}]{{standalone}}',
+                           '\\usepackage{tikz}',
+                           '\\usetikzlibrary{shapes}'
+                           '\\usepackage[utf8]{inputenc}',
+                           '\\makeatletter'],
+                          '\\begin{document}', file=self._output)
         self.mkTikz(svg, xform=xform)
-        print ('\\end{document}', file=self._output)
+        TiKZMaker.output(None, '\\end{document}', file=self._output)
 
     def mkTikz(self,svg,xform='yscale=-1'):
 
@@ -946,18 +958,18 @@ Throws exception when no solutions are found, else returns the two points.
             self.log(f' width: {width}')
         except: pass
 
-        print (f'\\begin{{tikzpicture}}[{xform}]', file=self._output)
+        TiKZMaker.output (None, f'\\begin{{tikzpicture}}[{xform}]', file=self._output)
 
         if height is not None and width is not None:
-            print('\\useasboundingbox(0,0) rectangle ({},{});'.format(self.str2u(width),
-                                                                      self.str2u(height)),file=self._output)
+            _W, _H = self.str2u(width), self.str2u(height)
+            TiKZMaker.output (None, f'\\useasboundingbox(0,0) rectangle ({_W},{_H});', file=self._output)
 
         for elem in svg_groups:
             if len(elem) > 0:
                 transform = self.transform2scope(elem)
                 self.process_g(elem, top=True)
-                if transform: print ('\\end{scope}',file=self._output)
-        print ('\\end{tikzpicture}',file=self._output)
+                if transform: TiKZMaker.output  (None, '\\end{scope}', file=self._output)
+        TiKZMaker.output (None, '\\end{tikzpicture}', file=self._output)
 
 def main():
     import argparse
