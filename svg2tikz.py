@@ -494,7 +494,7 @@ Throws exception when no solutions are found, else returns the two points.
         elif spec in [ 'M','m']:
             if not first:
                 TiKZMaker.output (None, ';', file=self._output)
-            if spec == 'M':
+            if spec == 'M' or first:
                 self._lastx = x1
                 self._lasty = y1
             else:
