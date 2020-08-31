@@ -599,7 +599,7 @@ Throws exception when no solutions are found, else returns the two points.
 
         this_shift = self.mkshift(x,y)
         if this_shift is not None:
-            self.manage_scope(this_shift, file=self._output)
+            self.manage_scope(this_shift, ofile=self._output)
 
         for s in self._symbols:
             if href[1:] == s.get('id'):
