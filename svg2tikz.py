@@ -1021,13 +1021,15 @@ def main():
                         dest='code',
                         default='utf-8',
                         help='Output file coding')
-    parser.add_argument('infile',metavar='INFILE', type=str, help='Input file')
+    parser.add_argument('infile',metavar='INFILE',
+					    type=argparse.FileType('r'),
+					    help='help')
 
     args = parser.parse_args()
 
     if args.auto:
         import os
-        args.output = os.path.splitext(args.infile)[0]+ '.tex'
+        args.output = os.path.splitext(args.infile.name)[0] + '.tex'
 
     if args.multi:
         if args.standalone:
