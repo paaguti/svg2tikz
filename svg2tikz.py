@@ -309,7 +309,7 @@ Throws exception when no solutions are found, else returns the two points.
                     # TODO: detect when the dashlen == stwidth to change style to dotted
                     dashspec = extra.split(',')
                     dashlen = self.str2u(dashspec[0])
-                    self.log(f' >>> first dash length: {dashlen} -> w {stwidth}')
+                    self.log(f' >>> first dash length: {dashlen} -> w {stwidth}', verbose=2)
                     if stwidth == dashlen:
                         stdef.pop()
                         stdef.append('dotted')
@@ -699,7 +699,7 @@ Throws exception when no solutions are found, else returns the two points.
                 self.log ('** Warning: ignored string alignment {}'.format(style),end='')
                 if __id__ is not None: self.log(' for element {}'.format(__id__),end='')
                 self.log ('!!')
-                return aling_xlate['center']
+                return align_xlate['center']
 
         pxRe = re.compile(r'(-?\d+(\.\d+(e?[+-]?\d+)))([a-z]{2})?')
         def mkFSize(style):
@@ -792,7 +792,7 @@ Throws exception when no solutions are found, else returns the two points.
         self.log ('text.x,y = %d,%d' % (x,y),verbose=2)
         if elem.text is None:
             tspans = elem.xpath('./svg:tspan',namespaces=self._nsmap)
-            self.log('tspans in text: {}'.format(tspans))
+            self.log(' tspans in text: {}'.format(tspans), verbose=2)
             for tspan in tspans:
                 self.process_tspan_elem(tspan,x,y,style)
         else:
@@ -1047,7 +1047,7 @@ def main():
                           dpi=args.dpi,
                           multi=args.multi,
                           round=args.round)
-    processor.log (' %s --> %s ' % (args.infile,args.output))
+    processor.log (f' {args.infile.name} [{args.infile.encoding}] --> {args.output}')
     try:
         tree = etree.parse(args.infile)
 
