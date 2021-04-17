@@ -273,7 +273,7 @@ Throws exception when no solutions are found, else returns the two points.
             'stroke-width':     lambda c: ('line width=' + self.str2u(c, do_round=False),     c),
             'stroke-dasharray': lambda c: (None if c == 'none' else 'dashed',                 c),
             'marker-start':     lambda c: (self.arrowtips(arrowtips,'>'),                     0),
-            'marker-end':       lambda c: (self.arrowtips(arrowtips,'<'),                     0),
+            'marker-end':       lambda c: (self.arrowtips(arrowtips,'>'),                     0),
         }
         for s in style.split(';'):
             m,c = s.split(':')
