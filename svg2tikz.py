@@ -13,7 +13,9 @@ Future plans include generalising to SVG without depending on Inkscape
 # version 3.6:  detect marker-start and marker-end
 # version 3.6a: reworking tspan for multi-tspan <text> elements
 #               TODO: format substrings in a tspan
-__version__ = '3.6a 200613'
+# version 3.6b: support document without explicit units
+
+__version__ = '3.6b 240321'
 
 from lxml import etree
 import sys
@@ -943,8 +945,14 @@ Throws exception when no solutions are found, else returns the two points.
             self.log(etree.tostring(s),verbose=2)
 
         units = self._unit
-        self._unit = svg.xpath('string(//svg:svg/sodipodi:namedview/@units)',namespaces=self._nsmap)
-        if len(self._unit) == 0: self._unit = units
+        try:
+            self._unit = svg.xpath('string(//svg:svg/sodipodi:namedview/@units)',namespaces=self._nsmap)
+        except:
+            pass
+        finally:
+            if self._unit is None or len(self._unit) == 0:
+                self._unit = units
+                self.log(f'No units found, assuming {self._unit}')
 
         height=None
         try:
