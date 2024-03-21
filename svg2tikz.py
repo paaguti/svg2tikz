@@ -14,8 +14,9 @@ Future plans include generalising to SVG without depending on Inkscape
 # version 3.6a: reworking tspan for multi-tspan <text> elements
 #               TODO: format substrings in a tspan
 # version 3.6b: support document without explicit units
+# version 3.6c: fix some arcs
 
-__version__ = '3.6b 240321'
+__version__ = '3.6c 240321'
 
 from lxml import etree
 import sys
