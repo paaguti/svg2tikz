@@ -207,17 +207,19 @@ Throws exception when no solutions are found, else returns the two points.
         # h = float(elem.attrib['height'])
         return float(elem.xpath('string(.//@width)')),float(elem.xpath('string(.//@height)'))
 
-    def hex2rgb(self,colour):
+    def hex2rgb(self, colour):
         self.log(f'hex2rgb({colour})',verbose=2)
-        if colour.lower() == 'none': return 'none'
+        if colour.lower() == 'none':
+            return 'none'
         r = int('0x'+colour[1:3],0)
         g = int('0x'+colour[3:5],0)
         b = int('0x'+colour[5:],0)
         return f'{{RGB}}{{{r},{g},{b}}}'
 
-    rgbSpecRe = re.compile('rgb\((\d+%?),(\d+%?),(\d+%?)\)')
+    rgbSpecRe = re.compile(r'rgb\((\d+%?),(\d+%?),(\d+%?)\)')
     def rgb2colour(self,colour):
-        m = rgbSpecRe.match(colour)
+        self.log(f'rgb2colour({colour})',verbose=2)
+        m = TiKZMaker.rgbSpecRe.match(colour)
         if m is None: return colour, None
         r = int(m.group(1)[:-1]) * 255 if m.group(1).endswith('%') else int(m.group(1))
         g = int(m.group(2)[:-1]) * 255 if m.group(2).endswith('%') else int(m.group(2))
@@ -225,10 +227,16 @@ Throws exception when no solutions are found, else returns the two points.
         return '#%02x%02x%02x' % (r,g,b) , '{RGB}{%d,%d,%d}' % (r,g,b)
 
     def hex2colour(self,colour,cname=None,cdef=None):
-        self.log('hex2colour(%s) = ' % colour,end='',verbose=2)
         result = None
-        col,rgb = self.rbg2colour(colour) if colour.startswith('rgb(') else colour,self.hex2rgb(colour)
-        self.log ('colour %s --> %s,%s' % (colour,col,rgb),verbose=2)
+        col = None
+        rgb = None
+        self.log('hex2colour(%s) = ' % colour,end='',verbose=2)
+        if colour.startswith('rgb('):
+            col, rgb = self.rbg2colour(colour)
+        else:
+            col = colour
+            rgb = self.hex2rgb(colour)
+        self.log ('colour %s --> %s,%s' % (colour, col, rgb),verbose=2)
         d = {'none'    : 'none',
              '#000000' : 'black',
              '#ff0000' : 'red',
@@ -651,12 +659,14 @@ Throws exception when no solutions are found, else returns the two points.
             style,cdefs = self.style2colour(_style)
             self.log (f'%% style= "{style}"', verbose=2)
             self.log (f'%% colour defs = "{cdefs}"', verbose=2)
-        except Exception as e:
+        except:
             style,cdefs = '',''
 
         spec = None
-
-        _type = elem.xpath('string(.//@sodipodi:type)', namespaces=self._nsmap)
+        try:
+            _type = elem.xpath('string(.//@sodipodi:type)', namespaces=self._nsmap)
+        except:
+            _type = None
         self.log (f"sodipodi type is '{_type}'", verbose=2)
         self.log (f"style is '{style}'", verbose=2)
 
